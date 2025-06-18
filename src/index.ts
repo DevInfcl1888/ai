@@ -3,7 +3,7 @@ import { sendOtpHandler, verifyOTPhandler } from './routes/otpRoute';
 import { connectToDatabase, closeDatabaseConnection } from './config/database';
 import dotenv from 'dotenv';
 import { editProfileHandler, getProfileHandler, loginHandler } from './routes/loginRoute';
-import { socialLoginHandler, socialRegisterHandler } from './routes/socialRoute';
+import { socialLoginHandler, socialRegisterHandler , deleteAccountHandler } from './routes/socialRoute';
 
 dotenv.config();
 
@@ -28,6 +28,9 @@ app.post('/social/register', socialRegisterHandler);
 app.post('/social/login', socialLoginHandler);
 app.put('/edit-profile', editProfileHandler);
 app.get('/get-profile', getProfileHandler);
+app.delete('/delete-account', deleteAccountHandler);
+
+
 
 const PORT = process.env.PORT || 3000;
 const server = app.listen(PORT, () => {

@@ -61,3 +61,27 @@ export const socialLoginHandler = async (req: Request, res: Response) => {
     user: isUserExists,
   });
 };
+export const deleteAccountHandler = async (req: Request, res: Response) => {
+  const userId = req.query.id as string;
+  console.log("Received user ID:", userId);
+
+  if (!userId || !ObjectId.isValid(userId)) {
+    res.status(400).json({ error: "Valid user ID is required" });
+    return;
+  }
+
+  const usersCollection = await getCollection("users");
+
+  const result = await usersCollection.deleteOne({ _id: new ObjectId(userId) });
+  console.log("Deleted with ObjectId?", result.deletedCount);
+
+  if (result.deletedCount === 0) {
+    res.status(404).json({ error: "User not found or already deleted" });
+    return;
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "User account deleted successfully",
+  });
+};
