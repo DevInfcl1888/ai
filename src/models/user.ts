@@ -8,6 +8,7 @@ export interface SocialUser {
     socialId: string;
     socialType: string;
     user: any;
+    device_token: string
     createdAt: Date;
     updatedAt: Date;
 }

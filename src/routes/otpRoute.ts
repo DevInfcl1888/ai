@@ -55,13 +55,55 @@ export async function sendOtpHandler(
  * POST /otp/verify
  * Body: { phoneNumber: string, otp: string }
  */
+// export async function verifyOTPhandler(
+//   req: Request,
+//   res: Response,
+//   next: NextFunction
+// ): Promise<void> {
+//   try {
+//     const { phoneNumber, otp, type, device_token } = req.body;
+//     console.log("device", device_token)
+
+//     if (!phoneNumber || !otp) {
+//       res.status(400).json({ error: "Phone number and OTP are required" });
+//       return;
+//     }
+
+//     const isVerified = verifyOtp(phoneNumber, otp);
+//     const usersCollection = await getCollection("users");
+//     const existingUser = await usersCollection.findOne({ phone: phoneNumber });
+
+//     if (isVerified) {
+//       if (type === "register") {
+//         const result = await registerUser(phoneNumber, device_token);
+//         res.status(200).json({
+//           success: true,
+//           message: "User registered successfully",
+//           data: {...result, _id: new ObjectId(result.id)},
+//         });
+//       } else {
+//         res.status(200).json({
+//           success: true,
+//           message: "User logged in successfully",
+//           data: existingUser,
+//         });
+//       }
+//     } else {
+//       res.status(400).json({ error: "Entered OTP must be wrong or expired" });
+//     }
+//   } catch (error) {
+//     next(error);
+//   }
+// }
+
 export async function verifyOTPhandler(
   req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> {
   try {
-    const { phoneNumber, otp, type } = req.body;
+    const { phoneNumber, otp, type, device_token } = req.body;
+    console.log("device", device_token);
 
     if (!phoneNumber || !otp) {
       res.status(400).json({ error: "Phone number and OTP are required" });
@@ -73,12 +115,23 @@ export async function verifyOTPhandler(
     const existingUser = await usersCollection.findOne({ phone: phoneNumber });
 
     if (isVerified) {
+      if (existingUser && device_token) {
+        // If user has no device_token or a different one, update it
+        if (!existingUser.device_token || existingUser.device_token !== device_token) {
+          await usersCollection.updateOne(
+            { _id: existingUser._id },
+            { $set: { device_token: device_token } }
+          );
+          existingUser.device_token = device_token;
+        }
+      }
+
       if (type === "register") {
-        const result = await registerUser(phoneNumber);
+        const result = await registerUser(phoneNumber, device_token);
         res.status(200).json({
           success: true,
           message: "User registered successfully",
-          data: {...result, _id: new ObjectId(result.id)},
+          data: { ...result, _id: new ObjectId(result.id) },
         });
       } else {
         res.status(200).json({
@@ -95,7 +148,8 @@ export async function verifyOTPhandler(
   }
 }
 
-async function registerUser(phoneNumber: string) {
+
+async function registerUser(phoneNumber: string , device_token: string ) {
   const newUser: User = {
     phone: phoneNumber,
     createdAt: new Date(),
@@ -107,6 +161,7 @@ async function registerUser(phoneNumber: string) {
 
   return {
     id: result.insertedId,
+    device_token : device_token,
     phone: phoneNumber,
     createdAt: newUser.createdAt,
     updatedAt: newUser.updatedAt,

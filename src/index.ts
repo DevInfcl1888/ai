@@ -2,7 +2,7 @@ import express from 'express';
 import { sendOtpHandler, verifyOTPhandler } from './routes/otpRoute';
 import { connectToDatabase, closeDatabaseConnection } from './config/database';
 import dotenv from 'dotenv';
-import { editProfileHandler, getProfileHandler, loginHandler } from './routes/loginRoute';
+import { editProfileHandler, getProfileHandler, loginHandler, updateUserPreferencesHandler } from './routes/loginRoute';
 import { socialLoginHandler, socialRegisterHandler , deleteAccountHandler } from './routes/socialRoute';
 
 dotenv.config();
@@ -25,6 +25,7 @@ app.post('/otp/send', sendOtpHandler);
 app.post('/otp/verify', verifyOTPhandler);
 app.post('/login', loginHandler);
 app.post('/social/register', socialRegisterHandler);
+app.post('/notifyToggle', updateUserPreferencesHandler);
 app.post('/social/login', socialLoginHandler);
 app.put('/edit-profile', editProfileHandler);
 app.get('/get-profile', getProfileHandler);

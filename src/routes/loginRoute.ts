@@ -1,14 +1,43 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import { getCollection } from "../config/database";
 import { sendOtp } from "../services/otpService";
 import { ObjectId } from "mongodb";
 
-export const loginHandler = async (req: Request, res: Response) => {
-  const { phoneNumber } = req.body;
+// export const loginHandler = async (req: Request, res: Response) => {
+//   const { phoneNumber } = req.body;
+
+//   if (!phoneNumber) {
+//     res.status(400).json({ error: "Phone number is required" });
+//     return;
+//   }
+
+//   const usersCollection = await getCollection("users");
+//   const existingUser = await usersCollection.findOne({
+//     $or: [{ phone: phoneNumber }],
+//   });
+
+//   if (!existingUser) {
+//     res.status(400).json({ error: "User not found" });
+//     return;
+//   }
+
+//   const otp = Math.floor(100000 + Math.random() * 900000).toString();
+//   await sendOtp(phoneNumber, otp);
+
+//   res.status(200).json({
+//     success: true,
+//     message: "User logged in successfully",
+//     data: existingUser,
+//   });
+// };
+
+
+export const loginHandler = async (req: Request, res: Response): Promise<void> => {
+  const { phoneNumber, device_token } = req.body;
+  console.log("device_token",device_token)
 
   if (!phoneNumber) {
     res.status(400).json({ error: "Phone number is required" });
-    return;
   }
 
   const usersCollection = await getCollection("users");
@@ -21,10 +50,19 @@ export const loginHandler = async (req: Request, res: Response) => {
     return;
   }
 
+  // Replace device_token if it's different
+  if (device_token && existingUser.device_token !== device_token) {
+    await usersCollection.updateOne(
+      { _id: existingUser._id },
+      { $set: { device_token: device_token } }
+    );
+    existingUser.device_token = device_token;
+  }
+
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   await sendOtp(phoneNumber, otp);
 
-  res.status(200).json({
+   res.status(200).json({
     success: true,
     message: "User logged in successfully",
     data: existingUser,
@@ -74,3 +112,62 @@ export const getProfileHandler = async (req: Request, res: Response) => {
   });
 };
 
+
+
+export const updateUserPreferencesHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { userId, notification, sms } = req.body;
+    console.log(userId, notification, sms);
+
+    if (!userId) {
+      res.status(400).json({ error: "User ID is required" });
+      return;
+    }
+
+    const isNotificationProvided = typeof notification === "boolean";
+    const isSmsProvided = typeof sms === "boolean";
+
+    // Enforce only one preference at a time
+    if ((isNotificationProvided && isSmsProvided) || (!isNotificationProvided && !isSmsProvided)) {
+      res.status(400).json({
+        error: "Send either 'notification' or 'sms' (only one at a time) as a boolean",
+      });
+      return;
+    }
+
+    const usersCollection = await getCollection("users");
+    const userObjectId = new ObjectId(userId);
+
+    const existingUser = await usersCollection.findOne({ _id: userObjectId });
+
+    if (!existingUser) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    const updateField: Partial<{ notification: boolean; sms: boolean }> = {};
+
+    if (isNotificationProvided) {
+      updateField.notification = notification;
+    } else if (isSmsProvided) {
+      updateField.sms = sms;
+    }
+
+    await usersCollection.updateOne(
+      { _id: userObjectId },
+      { $set: updateField }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "User preference updated successfully",
+      updated: updateField,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

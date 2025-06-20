@@ -4,7 +4,7 @@ import { SocialUser } from "../models/user";
 import { ObjectId } from "mongodb";
 
 export const socialRegisterHandler = async (req: Request, res: Response) => {
-  const { socialId, socialType, user } = req.body;
+  const { socialId, socialType, user, device_token } = req.body;
 
   if (!socialId || !socialType) {
     res
@@ -27,6 +27,7 @@ export const socialRegisterHandler = async (req: Request, res: Response) => {
     socialId,
     socialType,
     user,
+    device_token,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -42,8 +43,33 @@ export const socialRegisterHandler = async (req: Request, res: Response) => {
 };
 
 
+// export const socialLoginHandler = async (req: Request, res: Response) => {
+//   const { socialId, socialType } = req.body;
+
+//   const usersCollection = await getCollection("users");
+//   const isUserExists = await usersCollection.findOne({
+//     $or: [{ socialId, socialType }],
+//   });
+
+//   if (!isUserExists) {
+//     res.status(400).json({ error: "User not found" });
+//     return;
+//   }
+
+//   res.status(200).json({
+//     success: true,
+//     message: "User logged in successfully",
+//     user: isUserExists,
+//   });
+// };
+
 export const socialLoginHandler = async (req: Request, res: Response) => {
-  const { socialId, socialType } = req.body;
+  const { socialId, socialType, device_token } = req.body;
+
+  if (!socialId || !socialType) {
+    res.status(400).json({ error: "socialId and socialType are required" });
+    return;
+  }
 
   const usersCollection = await getCollection("users");
   const isUserExists = await usersCollection.findOne({
@@ -55,12 +81,24 @@ export const socialLoginHandler = async (req: Request, res: Response) => {
     return;
   }
 
+  // Update device_token if it's provided and different
+  if (device_token && isUserExists.device_token !== device_token) {
+    await usersCollection.updateOne(
+      { _id: isUserExists._id },
+      { $set: { device_token: device_token } }
+    );
+    isUserExists.device_token = device_token;
+  }
+
   res.status(200).json({
     success: true,
     message: "User logged in successfully",
     user: isUserExists,
   });
 };
+
+
+
 export const deleteAccountHandler = async (req: Request, res: Response) => {
   const userId = req.query.id as string;
   console.log("Received user ID:", userId);
