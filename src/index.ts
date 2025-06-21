@@ -4,6 +4,7 @@ import { connectToDatabase, closeDatabaseConnection } from './config/database';
 import dotenv from 'dotenv';
 import { editProfileHandler, getProfileHandler, loginHandler, updateUserPreferencesHandler } from './routes/loginRoute';
 import { socialLoginHandler, socialRegisterHandler , deleteAccountHandler } from './routes/socialRoute';
+import router from "./routes/admin.route";
 
 dotenv.config();
 
@@ -31,6 +32,9 @@ app.put('/edit-profile', editProfileHandler);
 app.get('/get-profile', getProfileHandler);
 app.delete('/delete-account', deleteAccountHandler);
 
+
+
+app.use('/admin', router);
 
 
 const PORT = process.env.PORT || 3000;
