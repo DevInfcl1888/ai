@@ -1,5 +1,6 @@
 import express from 'express';
 import { sendOtpHandler, verifyOTPhandler } from './routes/otpRoute';
+import { saveUserPlanHandler } from './controller/admin.controller';
 import { connectToDatabase, closeDatabaseConnection } from './config/database';
 import dotenv from 'dotenv';
 import { editProfileHandler, getProfileHandler, loginHandler, updateUserPreferencesHandler } from './routes/loginRoute';
@@ -31,7 +32,7 @@ app.post('/social/login', socialLoginHandler);
 app.put('/edit-profile', editProfileHandler);
 app.get('/get-profile', getProfileHandler);
 app.delete('/delete-account', deleteAccountHandler);
-
+app.post('/plans', saveUserPlanHandler);
 
 
 app.use('/admin', router);

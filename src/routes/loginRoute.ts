@@ -117,6 +117,10 @@ export const loginHandler = async (req: Request, res: Response): Promise<void> =
 
 export const editProfileHandler = async (req: Request, res: Response) => {
     const userId = req.query.id as string;
+    if (!ObjectId.isValid(userId)) {
+     res.status(400).json({ error: "Invalid user ID format" });
+     return;
+  }
 
   const usersCollection = await getCollection("users");
   const existingUser = await usersCollection.findOne({  _id: new ObjectId(userId) });
@@ -141,6 +145,10 @@ export const editProfileHandler = async (req: Request, res: Response) => {
 
 export const getProfileHandler = async (req: Request, res: Response) => {
   const userId = req.query.id as string;
+  if (!ObjectId.isValid(userId)) {
+    res.status(400).json({ error: "Invalid user ID format" });
+    return;
+  }
 
   const usersCollection = await getCollection("users");
   const existingUser = await usersCollection.findOne({ _id: new ObjectId(userId) });
@@ -168,10 +176,10 @@ export const updateUserPreferencesHandler = async (
     const { userId, notification, sms } = req.body;
     console.log(userId, notification, sms);
 
-    if (!userId) {
-      res.status(400).json({ error: "User ID is required" });
-      return;
-    }
+    if (!userId || !ObjectId.isValid(userId)) {
+  res.status(400).json({ error: "Valid user ID is required" });
+  return;
+}
 
     const isNotificationProvided = typeof notification === "boolean";
     const isSmsProvided = typeof sms === "boolean";

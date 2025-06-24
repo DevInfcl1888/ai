@@ -107,3 +107,49 @@ export const getBlockedUsers = async (_req: Request, res: Response): Promise<voi
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
+
+import { getCollection } from "../config/database";
+
+export const saveUserPlanHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const {
+      plan_detail,
+      expiry_date,
+      buy_date,
+      validity,
+      token,
+      transaction_id,
+      user_id,
+    } = req.body;
+
+    // Validate required fields
+    if (!user_id ) {
+      res.status(400).json({ error: 'Missing required fields' });
+      return;
+    }
+
+    const aiPlansCollection = await getCollection('ai_plans');
+
+    const planData = {
+      user_id: new ObjectId(user_id),
+      plan_detail,
+      expiry_date: new Date(expiry_date),
+      buy_date: new Date(buy_date),
+      validity,
+      token,
+      transaction_id,
+      created_at: new Date(),
+    };
+
+    const result = await aiPlansCollection.insertOne(planData);
+
+    res.status(201).json({
+      success: true,
+      message: 'Plan saved successfully',
+      plan_id: result.insertedId,
+    });
+  } catch (error) {
+    console.error('Error saving user plan:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
