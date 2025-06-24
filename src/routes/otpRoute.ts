@@ -30,6 +30,11 @@ export async function sendOtpHandler(
     });
 
     if (existingUser) {
+      // if (existingUser.isBlocked === true) {
+      //   res.status(403).json({ error: "You are blocked. Please contact the admin." });
+      //   return;
+      // }
+
       res.status(400).json({ error: "User already exists" });
       return;
     }

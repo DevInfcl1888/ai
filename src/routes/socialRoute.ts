@@ -81,6 +81,13 @@ export const socialLoginHandler = async (req: Request, res: Response) => {
     return;
   }
 
+    // Check if the user is blocked
+  if (isUserExists.isBlocked === true) {
+    res.status(403).json({ error: "You are blocked. Please contact the admin." });
+    return;
+  }
+
+
   // Update device_token if it's provided and different
   if (device_token && isUserExists.device_token !== device_token) {
     await usersCollection.updateOne(
