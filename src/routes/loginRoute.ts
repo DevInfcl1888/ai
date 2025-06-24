@@ -32,12 +32,50 @@ import { ObjectId } from "mongodb";
 // };
 
 
+// export const loginHandler = async (req: Request, res: Response): Promise<void> => {
+//   const { phoneNumber, device_token } = req.body;
+//   console.log("device_token",device_token)
+
+//   if (!phoneNumber) {
+//     res.status(400).json({ error: "Phone number is required" });
+//   }
+
+//   const usersCollection = await getCollection("users");
+//   const existingUser = await usersCollection.findOne({
+//     $or: [{ phone: phoneNumber }],
+//   });
+
+//   if (!existingUser) {
+//     res.status(400).json({ error: "User not found" });
+//     return;
+//   }
+
+//   // Replace device_token if it's different
+//   if (device_token && existingUser.device_token !== device_token) {
+//     await usersCollection.updateOne(
+//       { _id: existingUser._id },
+//       { $set: { device_token: device_token } }
+//     );
+//     existingUser.device_token = device_token;
+//   }
+
+//   const otp = Math.floor(100000 + Math.random() * 900000).toString();
+//   await sendOtp(phoneNumber, otp);
+
+//    res.status(200).json({
+//     success: true,
+//     message: "User logged in successfully",
+//     data: existingUser,
+//   });
+// };
+
 export const loginHandler = async (req: Request, res: Response): Promise<void> => {
   const { phoneNumber, device_token } = req.body;
-  console.log("device_token",device_token)
+  console.log("device_token", device_token);
 
   if (!phoneNumber) {
     res.status(400).json({ error: "Phone number is required" });
+    return;
   }
 
   const usersCollection = await getCollection("users");
@@ -47,6 +85,12 @@ export const loginHandler = async (req: Request, res: Response): Promise<void> =
 
   if (!existingUser) {
     res.status(400).json({ error: "User not found" });
+    return;
+  }
+
+  // Check if the user is blocked
+  if (existingUser.isBlocked === true) {
+    res.status(403).json({ error: "You are blocked. Please contact the admin." });
     return;
   }
 
@@ -62,12 +106,13 @@ export const loginHandler = async (req: Request, res: Response): Promise<void> =
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   await sendOtp(phoneNumber, otp);
 
-   res.status(200).json({
+  res.status(200).json({
     success: true,
     message: "User logged in successfully",
     data: existingUser,
   });
 };
+
 
 
 export const editProfileHandler = async (req: Request, res: Response) => {
