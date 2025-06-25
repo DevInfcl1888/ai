@@ -109,7 +109,6 @@ export const getBlockedUsers = async (_req: Request, res: Response): Promise<voi
 };
 
 import { getCollection } from "../config/database";
-
 export const saveUserPlanHandler = async (req: Request, res: Response): Promise<void> => {
   try {
     const {
@@ -123,15 +122,21 @@ export const saveUserPlanHandler = async (req: Request, res: Response): Promise<
     } = req.body;
 
     // Validate required fields
-    if (!user_id ) {
+    if (!user_id) {
       res.status(400).json({ error: 'Missing required fields' });
       return;
     }
 
     const aiPlansCollection = await getCollection('ai_plans');
 
+    const userObjectId = new ObjectId(user_id);
+
+    // Delete previous plan(s) for the user
+    await aiPlansCollection.deleteMany({ user_id: userObjectId });
+
+    // Prepare new plan data
     const planData = {
-      user_id: new ObjectId(user_id),
+      user_id: userObjectId,
       plan_detail,
       expiry_date: new Date(expiry_date),
       buy_date: new Date(buy_date),
@@ -141,6 +146,7 @@ export const saveUserPlanHandler = async (req: Request, res: Response): Promise<
       created_at: new Date(),
     };
 
+    // Insert the new plan
     const result = await aiPlansCollection.insertOne(planData);
 
     res.status(201).json({
@@ -153,3 +159,147 @@ export const saveUserPlanHandler = async (req: Request, res: Response): Promise<
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+
+// import { Request, Response } from "express";
+// import { ObjectId } from "mongodb";
+// import { getCollection } from "../config/database";
+
+export const getLatestUserPlanHandler = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { user_id } = req.query;
+
+    if (!user_id || !ObjectId.isValid(user_id as string)) {
+      res.status(400).json({ error: "Valid user_id is required" });
+      return;
+    }
+
+    const userObjectId = new ObjectId(user_id as string);
+    const aiPlansCollection = await getCollection("ai_plans");
+
+    const latestPlan = await aiPlansCollection
+      .find({ user_id: userObjectId })
+      .sort({ created_at: -1 })
+      .limit(1)
+      .toArray();
+
+    if (latestPlan.length === 0) {
+      res.status(404).json({ error: "No plans found for the user" });
+      return;
+    }
+
+    const plan = latestPlan[0];
+
+    // Remove sensitive fields
+    if ("token" in plan) {
+      delete plan.token;
+    }
+
+    // Calculate days left to expire
+    const now = new Date();
+    const expiryDate = new Date(plan.expiry_date);
+    const timeDiff = expiryDate.getTime() - now.getTime();
+    const daysLeft = Math.max(0, Math.ceil(timeDiff / (1000 * 60 * 60 * 24)));
+
+    plan.days_left_to_expire = daysLeft;
+
+    res.status(200).json({
+      success: true,
+      data: plan,
+    });
+  } catch (error) {
+    console.error("Error fetching latest user plan:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+
+// export const getLatestUserPlanHandler = async (
+//   req: Request,
+//   res: Response
+// ): Promise<void> => {
+//   try {
+//     const { user_id } = req.query;
+
+//     if (!user_id || !ObjectId.isValid(user_id as string)) {
+//       res.status(400).json({ error: "Valid user_id is required" });
+//       return;
+//     }
+
+//     const userObjectId = new ObjectId(user_id as string);
+//     const aiPlansCollection = await getCollection("ai_plans");
+
+//     const latestPlan = await aiPlansCollection
+//       .find({ user_id: userObjectId })
+//       .sort({ created_at: -1 })
+//       .limit(1)
+//       .toArray();
+
+//     if (latestPlan.length === 0) {
+//       res.status(404).json({ error: "No plans found for the user" });
+//       return;
+//     }
+
+//     // Remove the token field before returning
+//     const plan = latestPlan[0];
+//     if ("token" in plan) {
+//       delete plan.token;
+//     }
+
+
+//     res.status(200).json({
+//       success: true,
+//       data: latestPlan[0],
+//     });
+//   } catch (error) {
+//     console.error("Error fetching latest user plan:", error);
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// };
+
+// export const saveUserPlanHandler = async (req: Request, res: Response): Promise<void> => {
+//   try {
+//     const {
+//       plan_detail,
+//       expiry_date,
+//       buy_date,
+//       validity,
+//       token,
+//       transaction_id,
+//       user_id,
+//     } = req.body;
+
+//     // Validate required fields
+//     if (!user_id ) {
+//       res.status(400).json({ error: 'Missing required fields' });
+//       return;
+//     }
+
+//     const aiPlansCollection = await getCollection('ai_plans');
+
+//     const planData = {
+//       user_id: new ObjectId(user_id),
+//       plan_detail,
+//       expiry_date: new Date(expiry_date),
+//       buy_date: new Date(buy_date),
+//       validity,
+//       token,
+//       transaction_id,
+//       created_at: new Date(),
+//     };
+
+//     const result = await aiPlansCollection.insertOne(planData);
+
+//     res.status(201).json({
+//       success: true,
+//       message: 'Plan saved successfully',
+//       plan_id: result.insertedId,
+//     });
+//   } catch (error) {
+//     console.error('Error saving user plan:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// };

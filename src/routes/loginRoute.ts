@@ -167,19 +167,79 @@ export const getProfileHandler = async (req: Request, res: Response) => {
 
 
 
+// export const updateUserPreferencesHandler = async (
+//   req: Request,
+//   res: Response,
+//   next: NextFunction
+// ): Promise<void> => {
+//   try {
+//     const { userId, notification, sms } = req.body;
+//     console.log(userId, notification, sms);
+
+//     if (!userId || !ObjectId.isValid(userId)) {
+//   res.status(400).json({ error: "Valid user ID is required" });
+//   return;
+// }
+
+//     const isNotificationProvided = typeof notification === "boolean";
+//     const isSmsProvided = typeof sms === "boolean";
+
+//     // Enforce only one preference at a time
+//     if ((isNotificationProvided && isSmsProvided) || (!isNotificationProvided && !isSmsProvided)) {
+//       res.status(400).json({
+//         error: "Send either 'notification' or 'sms' (only one at a time) as a boolean",
+//       });
+//       return;
+//     }
+
+//     const usersCollection = await getCollection("users");
+//     const userObjectId = new ObjectId(userId);
+
+//     const existingUser = await usersCollection.findOne({ _id: userObjectId });
+
+//     if (!existingUser) {
+//       res.status(404).json({ error: "User not found" });
+//       return;
+//     }
+
+//     const updateField: Partial<{ notification: boolean; sms: boolean }> = {};
+
+//     if (isNotificationProvided) {
+//       updateField.notification = notification;
+//     } else if (isSmsProvided) {
+//       updateField.sms = sms;
+//     }
+
+//     await usersCollection.updateOne(
+//       { _id: userObjectId },
+//       { $set: updateField }
+//     );
+
+//     res.status(200).json({
+//       success: true,
+//       message: "User preference updated successfully",
+//       updated: updateField,
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
+
+
 export const updateUserPreferencesHandler = async (
   req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { userId, notification, sms } = req.body;
-    console.log(userId, notification, sms);
+    const { userId, notification, sms, phone_num } = req.body;
+    console.log(userId, notification, sms, phone_num);
 
     if (!userId || !ObjectId.isValid(userId)) {
-  res.status(400).json({ error: "Valid user ID is required" });
-  return;
-}
+      res.status(400).json({ error: "Valid user ID is required" });
+      return;
+    }
 
     const isNotificationProvided = typeof notification === "boolean";
     const isSmsProvided = typeof sms === "boolean";
@@ -202,12 +262,17 @@ export const updateUserPreferencesHandler = async (
       return;
     }
 
-    const updateField: Partial<{ notification: boolean; sms: boolean }> = {};
+    const updateField: Partial<{ notification: boolean; sms: boolean; contact: string }> = {};
 
     if (isNotificationProvided) {
       updateField.notification = notification;
     } else if (isSmsProvided) {
       updateField.sms = sms;
+
+      // Only update contact if phone_num is provided and valid
+      if (sms === true && phone_num && typeof phone_num === "string" && phone_num.trim() !== "") {
+        updateField.contact = phone_num.trim();
+      }
     }
 
     await usersCollection.updateOne(
@@ -224,3 +289,4 @@ export const updateUserPreferencesHandler = async (
     next(error);
   }
 };
+
