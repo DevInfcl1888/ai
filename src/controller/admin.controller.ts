@@ -289,3 +289,104 @@ export const getLatestUserPlanHandler = async (
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+
+
+export const savePlansDataHandler = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { plans } = req.body;
+
+    if (!Array.isArray(plans) || plans.length === 0) {
+      res.status(400).json({ error: "Payload must contain a non-empty 'plans' array" });
+      return;
+    }
+
+    const plansCollection = await getCollection("plans");
+
+    let upsertedCount = 0;
+    let modifiedCount = 0;
+
+    for (const plan of plans) {
+      if (!plan.plan || typeof plan.plan !== "string") continue;
+
+      const result = await plansCollection.updateOne(
+        { plan: plan.plan }, // match by unique plan name
+        { $set: plan },
+        { upsert: true }
+      );
+
+      if (result.upsertedCount > 0) upsertedCount++;
+      if (result.modifiedCount > 0) modifiedCount++;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Plans saved/updated successfully",
+      upserted: upsertedCount,
+      updated: modifiedCount,
+    });
+  } catch (error) {
+    console.error("Error saving plans data:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+
+
+
+export const getAllPlansHandler = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const plansCollection = await getCollection("plans");
+
+    const plans = await plansCollection.find().sort({ id: 1 }).toArray();
+
+    res.status(200).json({
+      success: true,
+      count: plans.length,
+      data: plans,
+    });
+  } catch (error) {
+    console.error("Error fetching plans:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+
+
+
+export const deletePlanByIdHandler = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    if (!id || !ObjectId.isValid(id)) {
+      res.status(400).json({ error: "A valid MongoDB _id is required" });
+      return;
+    }
+
+    const plansCollection = await getCollection("plans");
+
+    const result = await plansCollection.deleteOne({ _id: new ObjectId(id) });
+
+    if (result.deletedCount === 0) {
+      res.status(404).json({ error: "Plan not found" });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Plan with _id ${id} deleted successfully`,
+    });
+  } catch (error) {
+    console.error("Error deleting plan by _id:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
