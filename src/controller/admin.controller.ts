@@ -344,7 +344,9 @@ export const getAllPlansHandler = async (
   try {
     const plansCollection = await getCollection("plans");
 
-    const plans = await plansCollection.find().sort({ id: 1 }).toArray();
+    // const plans = await plansCollection.find().sort({ id: 1 }).toArray();
+        const plans = await plansCollection.find().sort({ price: 1 }).toArray();
+
 
     res.status(200).json({
       success: true,
