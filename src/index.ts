@@ -23,6 +23,16 @@ connectToDatabase()
     });
 
 
+
+import cors from "cors";
+
+// Allow specific origin (your frontend dev server)
+app.use(cors({
+  origin: "*", // or "*" to allow all origins temporarily
+  credentials: true, // if you are using cookies
+}));
+
+
 app.post("/send-sms", sendSmsHandler);
 
 
