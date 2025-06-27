@@ -15,4 +15,7 @@ export interface SocialUser {
     device_token: string
     createdAt: Date;
     updatedAt: Date;
+    notification:string;
+    phone_num: string;
+    sms: boolean
 }

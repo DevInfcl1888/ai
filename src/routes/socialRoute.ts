@@ -30,6 +30,9 @@ export const socialRegisterHandler = async (req: Request, res: Response) => {
     device_token,
     createdAt: new Date(),
     updatedAt: new Date(),
+    notification:"Never",
+    phone_num:"",
+    sms:false,
   };
 
   const result = await usersCollection.insertOne(newUser);
