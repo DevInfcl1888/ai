@@ -1,12 +1,12 @@
 import express from 'express';
 import { sendOtpHandler, verifyOTPhandler } from './routes/otpRoute';
-import { saveUserPlanHandler, getLatestUserPlanHandler, savePlansDataHandler , getAllPlansHandler, deletePlanByIdHandler} from './controller/admin.controller';
+import { saveUserPlanHandler, getLatestUserPlanHandler, savePlansDataHandler , getAllPlansHandler, deletePlanByIdHandler, saveTermsHandler, editTermsByIdHandler, deleteTermsByIdHandler, getTermsHandler} from './controller/admin.controller';
 import { connectToDatabase, closeDatabaseConnection } from './config/database';
 import dotenv from 'dotenv';
 import { editProfileHandler, getProfileHandler, loginHandler, updateUserPreferencesHandler } from './routes/loginRoute';
 import { socialLoginHandler, socialRegisterHandler , deleteAccountHandler } from './routes/socialRoute';
 import router from "./routes/admin.route";
-
+import { sendSmsHandler } from './controller/send.controller';
 dotenv.config();
 
 const app = express();
@@ -21,6 +21,11 @@ connectToDatabase()
         console.error('Failed to connect to MongoDB:', error);
         process.exit(1);
     });
+
+
+app.post("/send-sms", sendSmsHandler);
+
+
 
 // Routes
 app.post('/otp/send', sendOtpHandler);
@@ -37,6 +42,10 @@ app.get('/getplansDetails', getLatestUserPlanHandler);
 app.get('/getAllPlans', getAllPlansHandler);
 app.post('/savePlan', savePlansDataHandler);
 app.delete('/plan/:id', deletePlanByIdHandler);
+app.post('/saveTerms', saveTermsHandler);
+app.get('/getTerms', getTermsHandler);
+app.put('/editTerms/:id', editTermsByIdHandler);
+app.delete('/deleteTerms/:id', deleteTermsByIdHandler);
 
 
 app.use('/admin', router);

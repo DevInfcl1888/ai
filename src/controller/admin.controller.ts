@@ -1,5 +1,5 @@
 // handlers/userHandler.ts
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { connectToDatabase } from '../config/database';
 import { ObjectId } from 'mongodb';
 
@@ -292,6 +292,8 @@ export const getLatestUserPlanHandler = async (
 
 
 
+
+
 export const savePlansDataHandler = async (
   req: Request,
   res: Response
@@ -345,7 +347,9 @@ export const getAllPlansHandler = async (
     const plansCollection = await getCollection("plans");
 
     // const plans = await plansCollection.find().sort({ id: 1 }).toArray();
-        const plans = await plansCollection.find().sort({ price: 1 }).toArray();
+
+    const plans = await plansCollection.find().sort({ price: 1 }).toArray();
+    // Use `.sort({ price: -1 })` for descending order if needed
 
 
     res.status(200).json({
@@ -390,5 +394,142 @@ export const deletePlanByIdHandler = async (
   } catch (error) {
     console.error("Error deleting plan by _id:", error);
     res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+
+
+export const saveTermsHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { text } = req.body;
+
+    if (!text || typeof text !== "string" || text.trim() === "") {
+      res.status(400).json({ error: "Valid 'text' string is required" });
+      return;
+    }
+
+    const termsCollection = await getCollection("terms");
+
+    const document = {
+      text: text.trim(),
+      type: "Terms and Condition",
+      created_at: new Date()
+    };
+
+    await termsCollection.insertOne(document);
+
+    res.status(201).json({
+      success: true,
+      message: "Terms and Condition saved successfully",
+      data: document,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getTermsHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const termsCollection = await getCollection("terms");
+
+    const terms = await termsCollection
+      .find({})
+      .sort({ created_at: -1 }) // latest first
+      .toArray();
+
+    res.status(200).json({
+      success: true,
+      data: terms,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+export const editTermsByIdHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { text } = req.body;
+
+    if (!ObjectId.isValid(id)) {
+      res.status(400).json({ error: "Invalid ID format" });
+      return;
+    }
+
+    if (!text || typeof text !== "string" || text.trim() === "") {
+      res.status(400).json({ error: "Valid 'text' is required" });
+      return;
+    }
+
+    const termsCollection = await getCollection("terms");
+
+    const result = await termsCollection.updateOne(
+      { _id: new ObjectId(id) },
+      {
+        $set: {
+          text: text.trim(),
+          updated_at: new Date(),
+        },
+      }
+    );
+
+    if (result.matchedCount === 0) {
+      res.status(404).json({ error: "Term not found" });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Terms and Condition updated successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+export const deleteTermsByIdHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    if (!ObjectId.isValid(id)) {
+      res.status(400).json({ error: "Invalid ID format" });
+      return;
+    }
+
+    const termsCollection = await getCollection("terms");
+
+    const result = await termsCollection.deleteOne({
+      _id: new ObjectId(id),
+    });
+
+    if (result.deletedCount === 0) {
+      res.status(404).json({ error: "Term not found" });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Terms and Condition deleted successfully",
+    });
+  } catch (error) {
+    next(error);
   }
 };
