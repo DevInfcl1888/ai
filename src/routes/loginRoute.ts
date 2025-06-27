@@ -240,13 +240,13 @@ export const updateUserPreferencesHandler = async (
       return;
     }
 
-    const isNotificationProvided = typeof notification === "string" && ["Always", "Never","When interested"].includes(notification);
+    const isNotificationProvided = typeof notification === "string" && ["always", "never","interested"].includes(notification);
     const isSmsProvided = typeof sms === "boolean";
 
     // Enforce only one preference at a time
     if ((isNotificationProvided && isSmsProvided) || (!isNotificationProvided && !isSmsProvided)) {
       res.status(400).json({
-        error: "Send either 'notification' (as 'Always', 'Never','When interested') or 'sms' (as boolean) — only one at a time.",
+        error: "Send either 'notification' (as 'always', 'never','interested') or 'sms' (as boolean) — only one at a time.",
       });
       return;
     }
