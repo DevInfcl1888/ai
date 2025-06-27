@@ -159,6 +159,9 @@ async function registerUser(phoneNumber: string , device_token: string ) {
     phone: phoneNumber,
     createdAt: new Date(),
     updatedAt: new Date(),
+    phone_num: "",
+    notification: "Never",
+    sms: false
   };
 
   const usersCollection = await getCollection("users");

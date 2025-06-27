@@ -2,7 +2,11 @@ export interface User {
     phone: string;
     createdAt: Date;
     updatedAt: Date;
+    phone_num: string;
+    notification: string;
+    sms: boolean;
 }
+
 
 export interface SocialUser {
     socialId: string;
