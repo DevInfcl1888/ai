@@ -8,7 +8,7 @@ export const enterContact = async (req: Request, res: Response): Promise<any> =>
         const { title } = req.body;
         console.log("title",title)
 
-        if(!title) {
+        if(!title) { 
             return res.json({
                 message:"Enter title value"
             });
