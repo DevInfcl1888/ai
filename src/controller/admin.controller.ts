@@ -1,48 +1,52 @@
 // handlers/userHandler.ts
-import { Request, Response, NextFunction } from 'express';
-import { connectToDatabase } from '../config/database';
-import { ObjectId } from 'mongodb';
+import { Request, Response, NextFunction } from "express";
+import { connectToDatabase } from "../config/database";
+import { ObjectId } from "mongodb";
 
-export const getAllUsers = async (req: Request, res: Response): Promise<void> => {
+export const getAllUsers = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const db = await connectToDatabase();
-    const users = await db.collection('users').find({}).toArray();
+    const users = await db.collection("users").find({}).toArray();
 
     res.status(200).json({
       success: true,
       data: users,
     });
   } catch (error) {
-    console.error('Failed to fetch users:', error);
+    console.error("Failed to fetch users:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 };
-
 
 export const blockUser = async (req: Request, res: Response): Promise<void> => {
   const { userId } = req.body;
 
   if (!userId) {
-    res.status(400).json({ success: false, message: 'userId is required' });
+    res.status(400).json({ success: false, message: "userId is required" });
     return;
   }
 
   try {
     const db = await connectToDatabase();
-    const usersCollection = db.collection('users');
+    const usersCollection = db.collection("users");
 
     const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
 
     if (!user) {
-      res.status(404).json({ success: false, message: 'User not found' });
+      res.status(404).json({ success: false, message: "User not found" });
       return;
     }
 
     if (user.isBlocked === true) {
-      res.status(400).json({ success: false, message: 'User is already blocked' });
+      res
+        .status(400)
+        .json({ success: false, message: "User is already blocked" });
       return;
     }
 
@@ -51,34 +55,41 @@ export const blockUser = async (req: Request, res: Response): Promise<void> => {
       { $set: { isBlocked: true } }
     );
 
-    res.status(200).json({ success: true, message: 'User blocked successfully' });
+    res
+      .status(200)
+      .json({ success: true, message: "User blocked successfully" });
   } catch (error) {
-    console.error('Error blocking user:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    console.error("Error blocking user:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
 
-export const unblockUser = async (req: Request, res: Response): Promise<void> => {
+export const unblockUser = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   const { userId } = req.body;
 
   if (!userId) {
-    res.status(400).json({ success: false, message: 'userId is required' });
+    res.status(400).json({ success: false, message: "userId is required" });
     return;
   }
 
   try {
     const db = await connectToDatabase();
-    const usersCollection = db.collection('users');
+    const usersCollection = db.collection("users");
 
     const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
 
     if (!user) {
-      res.status(404).json({ success: false, message: 'User not found' });
+      res.status(404).json({ success: false, message: "User not found" });
       return;
     }
 
     if (!user.isBlocked || user.isBlocked === false) {
-      res.status(400).json({ success: false, message: 'User is already unblocked' });
+      res
+        .status(400)
+        .json({ success: false, message: "User is already unblocked" });
       return;
     }
 
@@ -87,29 +98,39 @@ export const unblockUser = async (req: Request, res: Response): Promise<void> =>
       { $set: { isBlocked: false } }
     );
 
-    res.status(200).json({ success: true, message: 'User unblocked successfully' });
+    res
+      .status(200)
+      .json({ success: true, message: "User unblocked successfully" });
   } catch (error) {
-    console.error('Error unblocking user:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    console.error("Error unblocking user:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
 
-export const getBlockedUsers = async (_req: Request, res: Response): Promise<void> => {
+export const getBlockedUsers = async (
+  _req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const db = await connectToDatabase();
-    const usersCollection = db.collection('users');
+    const usersCollection = db.collection("users");
 
-    const blockedUsers = await usersCollection.find({ isBlocked: true }).toArray();
+    const blockedUsers = await usersCollection
+      .find({ isBlocked: true })
+      .toArray();
 
     res.status(200).json({ success: true, data: blockedUsers });
   } catch (error) {
-    console.error('Error fetching blocked users:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    console.error("Error fetching blocked users:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
 
 import { getCollection } from "../config/database";
-export const saveUserPlanHandler = async (req: Request, res: Response): Promise<void> => {
+export const saveUserPlanHandler = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const {
       plan_detail,
@@ -123,11 +144,11 @@ export const saveUserPlanHandler = async (req: Request, res: Response): Promise<
 
     // Validate required fields
     if (!user_id) {
-      res.status(400).json({ error: 'Missing required fields' });
+      res.status(400).json({ error: "Missing required fields" });
       return;
     }
 
-    const aiPlansCollection = await getCollection('ai_plans');
+    const aiPlansCollection = await getCollection("ai_plans");
 
     const userObjectId = new ObjectId(user_id);
 
@@ -151,15 +172,14 @@ export const saveUserPlanHandler = async (req: Request, res: Response): Promise<
 
     res.status(201).json({
       success: true,
-      message: 'Plan saved successfully',
+      message: "Plan saved successfully",
       plan_id: result.insertedId,
     });
   } catch (error) {
-    console.error('Error saving user plan:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error saving user plan:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
-
 
 // import { Request, Response } from "express";
 // import { ObjectId } from "mongodb";
@@ -222,9 +242,6 @@ export const saveUserPlanHandler = async (req: Request, res: Response): Promise<
 //   }
 // };
 
-
-
-
 export const getLatestUserPlanHandler = async (
   req: Request,
   res: Response
@@ -259,7 +276,7 @@ export const getLatestUserPlanHandler = async (
     const timeDiff = expiryDate.getTime() - now.getTime();
     const daysLeft = Math.max(0, Math.ceil(timeDiff / (1000 * 60 * 60 * 24)));
 
-     // Normalize plan_detail
+    // Normalize plan_detail
     let normalizedPlanDetail: string | undefined = undefined;
     if (typeof plan.plan_detail === "string") {
       normalizedPlanDetail = plan.plan_detail;
@@ -270,8 +287,8 @@ export const getLatestUserPlanHandler = async (
     // Only pick allowed fields
     const filteredResponse = {
       // token: plan.token,
-      _id : plan._id,
-            active_plan: normalizedPlanDetail,
+      _id: plan._id,
+      active_plan: normalizedPlanDetail,
 
       transaction_id: plan.transaction_id,
       user_id: plan.user_id,
@@ -290,10 +307,6 @@ export const getLatestUserPlanHandler = async (
   }
 };
 
-
-
-
-
 export const savePlansDataHandler = async (
   req: Request,
   res: Response
@@ -302,7 +315,9 @@ export const savePlansDataHandler = async (
     const { plans } = req.body;
 
     if (!Array.isArray(plans) || plans.length === 0) {
-      res.status(400).json({ error: "Payload must contain a non-empty 'plans' array" });
+      res
+        .status(400)
+        .json({ error: "Payload must contain a non-empty 'plans' array" });
       return;
     }
 
@@ -336,9 +351,6 @@ export const savePlansDataHandler = async (
   }
 };
 
-
-
-
 export const getAllPlansHandler = async (
   req: Request,
   res: Response
@@ -351,7 +363,6 @@ export const getAllPlansHandler = async (
     const plans = await plansCollection.find().sort({ price: 1 }).toArray();
     // Use `.sort({ price: -1 })` for descending order if needed
 
-
     res.status(200).json({
       success: true,
       count: plans.length,
@@ -362,9 +373,6 @@ export const getAllPlansHandler = async (
     res.status(500).json({ error: "Internal server error" });
   }
 };
-
-
-
 
 export const deletePlanByIdHandler = async (
   req: Request,
@@ -397,8 +405,6 @@ export const deletePlanByIdHandler = async (
   }
 };
 
-
-
 export const saveTermsHandler = async (
   req: Request,
   res: Response,
@@ -417,7 +423,7 @@ export const saveTermsHandler = async (
     const document = {
       text: text.trim(),
       type: "Terms and Condition",
-      created_at: new Date()
+      created_at: new Date(),
     };
 
     await termsCollection.insertOne(document);
@@ -453,7 +459,6 @@ export const getTermsHandler = async (
     next(error);
   }
 };
-
 
 export const editTermsByIdHandler = async (
   req: Request,
@@ -499,7 +504,6 @@ export const editTermsByIdHandler = async (
     next(error);
   }
 };
-
 
 export const deleteTermsByIdHandler = async (
   req: Request,
