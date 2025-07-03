@@ -7,6 +7,17 @@ import { editProfileHandler, getProfileHandler, loginHandler, updateUserPreferen
 import { socialLoginHandler, socialRegisterHandler , deleteAccountHandler } from './routes/socialRoute';
 import router from "./routes/admin.route";
 import { sendSmsHandler } from './controller/send.controller';
+
+import {
+    enterContact,
+    getContact,
+    enterTerm,
+    getTerm,
+    enterPrivacy,
+    getPrivacy
+} from "./controller/info"
+
+
 dotenv.config();
 
 const app = express();
@@ -56,7 +67,12 @@ app.post('/saveTerms', saveTermsHandler);
 app.get('/getTerms', getTermsHandler);
 app.put('/editTerms/:id', editTermsByIdHandler);
 app.delete('/deleteTerms/:id', deleteTermsByIdHandler);
-
+app.post("/add-contact",enterContact);
+app.get("/get-contact",getContact);
+app.post("/add-term",enterTerm);
+app.get("/get-term",getTerm);
+app.post("/add-privacy",enterPrivacy);
+app.get("/get-privacy",getPrivacy);
 
 app.use('/admin', router);
 
