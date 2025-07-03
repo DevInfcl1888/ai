@@ -1,8 +1,6 @@
 import { Request, Response } from 'express';
 import { connectToDatabase } from '../config/database';
 import { ObjectId } from "mongodb";
-import Term from '../models/Terms';
-import Privacy from '../models/Privacy';
 
 export const enterContact = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -233,7 +231,6 @@ export const getPrivacy = async (req: Request, res: Response): Promise<void> => 
     res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
-
 export const updatePrivacy = async (req: Request, res: Response): Promise<void> => {
   try {
     const id = req.params.id;

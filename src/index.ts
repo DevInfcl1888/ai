@@ -25,6 +25,7 @@ import {
   deleteAccountHandler,
 } from "./routes/socialRoute";
 import router from "./routes/admin.route";
+
 import { sendSmsHandler } from "./controller/send.controller";
 
 //Info
@@ -67,6 +68,7 @@ app.use(
 app.post("/send-sms", sendSmsHandler);
 
 // Routes
+
 app.post("/otp/send", sendOtpHandler);
 app.post("/otp/verify", verifyOTPhandler);
 app.post("/login", loginHandler);
@@ -93,10 +95,12 @@ app.post("/add-term",enterTerm);
 app.get("/get-term",getTerm);
 app.post("/add-privacy",enterPrivacy);
 app.get("/get-privacy",getPrivacy);
+
 app.put("/edit-privacy/:id",updatePrivacy);
 app.delete("/delete-privacy/:id",deletePrivacy);
 
 app.use("/admin", router);
+
 
 const PORT = process.env.PORT || 3000;
 const server = app.listen(PORT, () => {
