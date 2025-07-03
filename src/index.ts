@@ -31,10 +31,14 @@ import { sendSmsHandler } from "./controller/send.controller";
 import {
     enterContact,
     getContact,
+    updateContact,
+    deleteContact,
     enterTerm,
     getTerm,
     enterPrivacy,
-    getPrivacy
+    getPrivacy,
+    updatePrivacy,
+    deletePrivacy
 } from "./controller/info"
 dotenv.config();
 
@@ -50,7 +54,7 @@ connectToDatabase()
     process.exit(1);
   });
 
-import cors from "cors";
+import cors from "cors"; 
 
 // Allow specific origin (your frontend dev server)
 app.use(
@@ -83,10 +87,14 @@ app.put("/editTerms/:id", editTermsByIdHandler);
 app.delete("/deleteTerms/:id", deleteTermsByIdHandler);
 app.post("/add-contact",enterContact);
 app.get("/get-contact",getContact);
+app.put("/edit-contact/:id",updateContact);
+app.delete("/delete-contact/:id",deleteContact);
 app.post("/add-term",enterTerm);
 app.get("/get-term",getTerm);
 app.post("/add-privacy",enterPrivacy);
 app.get("/get-privacy",getPrivacy);
+app.put("/edit-privacy/:id",updatePrivacy);
+app.delete("/delete-privacy/:id",deletePrivacy);
 
 app.use("/admin", router);
 

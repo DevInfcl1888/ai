@@ -418,7 +418,7 @@ export const saveTermsHandler = async (
       return;
     }
 
-    const termsCollection = await getCollection("terms");
+    const termsCollection = await getCollection("termconditions");
 
     const document = {
       text: text.trim(),
@@ -444,7 +444,7 @@ export const getTermsHandler = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const termsCollection = await getCollection("terms");
+    const termsCollection = await getCollection("termconditions");
 
     const terms = await termsCollection
       .find({})
@@ -479,7 +479,7 @@ export const editTermsByIdHandler = async (
       return;
     }
 
-    const termsCollection = await getCollection("terms");
+    const termsCollection = await getCollection("termconditions");
 
     const result = await termsCollection.updateOne(
       { _id: new ObjectId(id) },
@@ -518,7 +518,7 @@ export const deleteTermsByIdHandler = async (
       return;
     }
 
-    const termsCollection = await getCollection("terms");
+    const termsCollection = await getCollection("termconditions");
 
     const result = await termsCollection.deleteOne({
       _id: new ObjectId(id),
