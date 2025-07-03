@@ -1,12 +1,12 @@
 import mongoose,{Document, Schema} from 'mongoose';
 
-export interface ITerms extends Document {
+export interface ITermCondition extends Document {
     title : string;
 }
 
-const Terms: Schema<ITerms> = new Schema<ITerms>({
+const TermCondition: Schema<ITermCondition> = new Schema<ITermCondition>({
     title: { type: String, required: true }
 });
 
-const Term = mongoose.model<ITerms>("TermCondition",Terms);
-export default Term;
+const TermCon = mongoose.model<ITermCondition>("TermCondition",TermCondition);
+export default TermCon;

@@ -82,10 +82,10 @@ app.get("/getTerms", getTermsHandler);
 app.put("/editTerms/:id", editTermsByIdHandler);
 app.delete("/deleteTerms/:id", deleteTermsByIdHandler);
 app.post("/add-contact",enterContact);
-app.post("/get-contact",getContact);
+app.get("/get-contact",getContact);
 app.post("/add-term",enterTerm);
 app.get("/get-term",getTerm);
-app.post("/get-privacy",getPrivacy);
+app.post("/add-privacy",enterPrivacy);
 app.get("/get-privacy",getPrivacy);
 
 app.use("/admin", router);

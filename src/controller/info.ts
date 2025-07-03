@@ -1,157 +1,162 @@
 import { Request, Response } from 'express';
-import ContactUs from '../models/ContactUs';
+import { connectToDatabase } from '../config/database';
 import Term from '../models/Terms';
 import Privacy from '../models/Privacy';
 
-export const enterContact = async (req: Request, res: Response): Promise<any> => {
-    try {
-        const { title } = req.body;
-        console.log("title",title)
+export const enterContact = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { title } = req.body;
 
-        if(!title) { 
-            return res.json({
-                message:"Enter title value"
-            });
-        }
-
-        const newTitle = await ContactUs.create({ title });
-
-        return res.status(201).json({
-            success: true,
-            message: "Contact us created successfully",
-            data: newTitle
-        })
-    } catch (error) {
-        console.log("Error", error);
-        return res.status(500).json({
-            success: false,
-            message: "Internal Server Error"
-        });
+    if (!title) {
+      res.status(400).json({
+        success: false,
+        message: "Title is required"
+      });
+      return;
     }
-}
 
-export const getContact = async (req: Request, res: Response): Promise<any> => {
-    try {
-        const contact = await ContactUs.find().sort({ createdAt: -1 });
+    const db = await connectToDatabase();
+    const contactCollection = db.collection("contactus");
 
-        if(!contact){
-            return res.json({
-                message: "No contact found"
-            });
-        }
+    const result = await contactCollection.insertOne({ title });
 
-        return res.status(200).json({
-            success: true,
-            message: "Contact us found successfully",
-            data: contact
-        });
-    } catch (error) {
-        console.log("Error", error);
-        return res.status(500).json({
-            success: false,
-            message: "Internal Server Error"
-        });
+    res.status(201).json({
+      success: true,
+      message: "Contact us entry created successfully",
+      data: result
+    });
+  } catch (error) {
+    console.error("Error creating contact entry:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal Server Error"
+    });
+  }
+};
+
+export const getContact = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const db = await connectToDatabase();
+    const contactCollection = db.collection("contactus");
+
+    const contacts = await contactCollection
+      .find({})
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    if (!contacts || contacts.length === 0) {
+      res.status(404).json({
+        success: false,
+        message: "No contact found",
+      });
+      return;
     }
-}
 
-export const enterTerm = async (req: Request, res: Response): Promise<any> => {
-    try {
-        const { title } = req.body;
+    res.status(200).json({
+      success: true,
+      message: "Contact us entries fetched successfully",
+      data: contacts,
+    });
+  } catch (error) {
+    console.error("Error fetching contact entries:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
 
-        if(!title) {
-            return res.json({
-                message:"Enter title value"
-            });
-        }
+export const enterTerm = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { title } = req.body;
 
-        const newTitle = await Term.create({ title });
-
-        return res.status(201).json({
-            success: true,
-            message: "Term created successfully",
-            data: newTitle
-        })
-    } catch (error) {
-        console.log("Error", error);
-        return res.status(500).json({
-            success: false,
-            message: "Internal Server Error"
-        });
+    if (!title || title.trim() === "") {
+      res.status(400).json({ success: false, message: "Title is required" });
+      return;
     }
-}
 
-export const getTerm = async (req: Request, res: Response): Promise<any> => {
-    try {
-        const Terms = await Term.find().sort({ createdAt: -1 });
+    const db = await connectToDatabase();
+    const result = await db.collection("termconditions").insertOne({
+      title: title.trim(),
+      createdAt: new Date()
+    });
 
-        if(!Terms){
-            return res.json({
-                message: "No Term found"
-            });
-        }
+    res.status(201).json({
+      success: true,
+      message: "Term created successfully",
+      data: result
+    });
+  } catch (error) {
+    console.error("Error creating term:", error);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
 
-        return res.status(200).json({
-            success: true,
-            message: "Term us found successfully",
-            data: Terms
-        });
-    } catch (error) {
-        console.log("Error", error);
-        return res.status(500).json({
-            success: false,
-            message: "Internal Server Error"
-        });
+export const getTerm = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const db = await connectToDatabase();
+    const terms = await db.collection("termconditions").find().sort({ createdAt: -1 }).toArray();
+
+    if (terms.length === 0) {
+      res.status(404).json({ success: false, message: "No terms found" });
+      return;
     }
-}
 
-export const enterPrivacy = async (req: Request, res: Response): Promise<any> => {
-    try {
-        const { title } = req.body;
-        console.log("title",title)
+    res.status(200).json({
+      success: true,
+      message: "Terms fetched successfully",
+      data: terms
+    });
+  } catch (error) {
+    console.error("Error fetching terms:", error);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
 
-        if(!title || title.trim() === "") {
-            return res.json({
-                message:"Enter title value"
-            });
-        }
+export const enterPrivacy = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { title } = req.body;
 
-        const newTitle = await Privacy.create({ title: title.trim() });
-
-        return res.status(201).json({
-            success: true,
-            message: "Contact us created successfully",
-            data: newTitle
-        })
-    } catch (error) {
-        console.log("Error", error);
-        return res.status(500).json({
-            success: false,
-            message: "Internal Server Error"
-        });
+    if (!title || title.trim() === "") {
+      res.status(400).json({ success: false, message: "Title is required" });
+      return;
     }
-}
 
-export const getPrivacy = async (req: Request, res: Response): Promise<any> => {
-    try {
-        const Privacs = await Privacy.find().sort({ createdAt: -1 });
+    const db = await connectToDatabase();
+    const result = await db.collection("privacy").insertOne({
+      title: title.trim(),
+      createdAt: new Date()
+    });
 
-        if(!Privacs){
-            return res.json({
-                message: "No contact found"
-            });
-        }
+    res.status(201).json({
+      success: true,
+      message: "Privacy entry created successfully",
+      data: result
+    });
+  } catch (error) {
+    console.error("Error creating privacy entry:", error);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
 
-        return res.status(200).json({
-            success: true,
-            message: "Contact us found successfully",
-            data: Privacs
-        });
-    } catch (error) {
-        console.log("Error", error);
-        return res.status(500).json({
-            success: false,
-            message: "Internal Server Error"
-        });
+export const getPrivacy = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const db = await connectToDatabase();
+    const privacies = await db.collection("privacy").find().sort({ createdAt: -1 }).toArray();
+
+    if (privacies.length === 0) {
+      res.status(404).json({ success: false, message: "No privacy entries found" });
+      return;
     }
-}
+
+    res.status(200).json({
+      success: true,
+      message: "Privacy entries fetched successfully",
+      data: privacies
+    });
+  } catch (error) {
+    console.error("Error fetching privacy entries:", error);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
 
