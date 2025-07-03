@@ -1,12 +1,19 @@
-import mongoose,{Document, Schema} from 'mongoose';
+import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IPrivacy extends Document {
-    title : string;
+  heading?: string;
+  title: string;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
-const Privacs: Schema<IPrivacy> = new Schema<IPrivacy>({
-    title: { type: String, required: true }
-});
+const PrivacySchema: Schema<IPrivacy> = new Schema<IPrivacy>(
+  {
+    heading: { type: String },
+    title: { type: String, required: true },
+  },
+  { timestamps: true }
+);
 
-const Privacy = mongoose.model<IPrivacy>("Privacy",Privacs);
+const Privacy = mongoose.model<IPrivacy>('Privacy', PrivacySchema);
 export default Privacy;
