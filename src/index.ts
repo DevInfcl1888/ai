@@ -40,7 +40,7 @@ import {
     getPrivacy,
     updatePrivacy,
     deletePrivacy
-} from "./controller/info"
+} from "./controller/info"  
 dotenv.config();
 
 const app = express();
