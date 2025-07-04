@@ -144,6 +144,79 @@ export const deleteContact = async (req: Request, res: Response): Promise<void> 
 
 export const enterTerm = async (req: Request, res: Response): Promise<void> => {
   try {
+    const id = req.params.id;
+    const { title } = req.body;
+
+    if (!id || !ObjectId.isValid(id)) {
+      res.status(400).json({ success: false, message: "Invalid or missing ID" });
+      return;
+    }
+
+    if (!title || title.trim() === "") {
+      res.status(400).json({ success: false, message: "Title is required" });
+      return;
+    }
+
+    const db = await connectToDatabase();
+    const contactCollection = db.collection("contactus");
+
+    const result = await contactCollection.updateOne(
+      { _id: new ObjectId(id) },
+      {
+        $set: {
+          title: title.trim(),
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    if (result.modifiedCount === 0) {
+      res.status(404).json({ success: false, message: "Contact entry not found or not modified" });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Contact entry updated successfully",
+    });
+  } catch (error) {
+    console.error("Error updating contact entry:", error);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
+
+
+export const deleteContact = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id;
+
+    if (!id || !ObjectId.isValid(id)) {
+      res.status(400).json({ success: false, message: "Invalid or missing ID" });
+      return;
+    }
+
+    const db = await connectToDatabase();
+    const contactCollection = db.collection("contactus");
+
+    const result = await contactCollection.deleteOne({ _id: new ObjectId(id) });
+
+    if (result.deletedCount === 0) {
+      res.status(404).json({ success: false, message: "Contact entry not found" });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Contact entry deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting contact entry:", error);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
+
+export const enterTerm = async (req: Request, res: Response): Promise<void> => {
+  try {
     const { heading, title } = req.body;
 
     if (!title || title.trim() === '') {
@@ -241,6 +314,26 @@ export const getPrivacy = async (req: Request, res: Response): Promise<void> => 
     res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
+export const updatePrivacy = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id;
+    const { title } = req.body;
+
+    if (!id || !ObjectId.isValid(id)) {
+      res.status(400).json({ success: false, message: "Invalid or missing ID" });
+      return;
+    }
+
+    if (!title || title.trim() === "") {
+      res.status(400).json({ success: false, message: "Title is required" });
+      return;
+    }
+
+    const db = await connectToDatabase();
+    const result = await db.collection("privacy").updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { title: title.trim(), updatedAt: new Date() } }
+    );
 
 export const updatePrivacy = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -268,7 +361,6 @@ export const updatePrivacy = async (req: Request, res: Response): Promise<void> 
         },
       }
     );
-
     if (result.modifiedCount === 0) {
       res.status(404).json({ success: false, message: "Privacy entry not found or not modified" });
       return;
@@ -283,7 +375,6 @@ export const updatePrivacy = async (req: Request, res: Response): Promise<void> 
     res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
-
 
 export const deletePrivacy = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -311,4 +402,3 @@ export const deletePrivacy = async (req: Request, res: Response): Promise<void> 
     res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
-
