@@ -36,6 +36,8 @@ import {
     deleteContact,
     enterTerm,
     getTerm,
+    updateTerm,
+    deleteTerm,
     enterPrivacy,
     getPrivacy,
     updatePrivacy,
@@ -93,6 +95,8 @@ app.put("/edit-contact/:id",updateContact);
 app.delete("/delete-contact/:id",deleteContact);
 app.post("/add-term",enterTerm);
 app.get("/get-term",getTerm);
+app.put("/update-term/:id",updateTerm);
+app.delete("/delete-term/:id",deleteTerm);
 app.post("/add-privacy",enterPrivacy);
 app.get("/get-privacy",getPrivacy);
 
