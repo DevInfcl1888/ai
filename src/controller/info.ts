@@ -193,6 +193,61 @@ export const getTerm = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+export const updateTerm = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { heading, title } = req.body;
+
+    if (!title || title.trim() === '') {
+      res.status(400).json({ success: false, message: 'Title is required' });
+      return;
+    }
+
+    const db = await connectToDatabase();
+    const result = await db.collection('termconditions').updateOne(
+      { _id: new ObjectId(id) },
+      {
+        $set: {
+          heading: heading?.trim() || '',
+          title: title.trim(),
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    if (result.modifiedCount === 0) {
+      res.status(404).json({ success: false, message: 'Term not found or not updated' });
+      return;
+    }
+
+    res.status(200).json({ success: true, message: 'Term updated successfully' });
+  } catch (error) {
+    console.error('Error updating term:', error);
+    res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+};
+
+export const deleteTerm = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const db = await connectToDatabase();
+    const result = await db.collection('termconditions').deleteOne({
+      _id: new ObjectId(id),
+    });
+
+    if (result.deletedCount === 0) {
+      res.status(404).json({ success: false, message: 'Term not found' });
+      return;
+    }
+
+    res.status(200).json({ success: true, message: 'Term deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting term:', error);
+    res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+};
+
 export const enterPrivacy = async (req: Request, res: Response): Promise<void> => {
   try {
     const { heading, title } = req.body;

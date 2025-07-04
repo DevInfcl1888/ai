@@ -351,6 +351,43 @@ export const savePlansDataHandler = async (
   }
 };
 
+export const updatePlan = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { plan, price, benefits } = req.body;
+
+    if (!plan || plan.trim() === '') {
+      res.status(400).json({ success: false, message: 'Plan name is required' });
+      return;
+    }
+
+    const db = await connectToDatabase();
+
+    const result = await db.collection('plans').updateOne(
+      { _id: new ObjectId(id) },
+      {
+        $set: {
+          plan: plan.trim(),
+          price: Number(price) || 0,
+          benefits: Array.isArray(benefits) ? benefits : [],
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    if (result.modifiedCount === 0) {
+      res.status(404).json({ success: false, message: 'Plan not found or not updated' });
+      return;
+    }
+
+    res.status(200).json({ success: true, message: 'Plan updated successfully' });
+  } catch (error) {
+    console.error('Error updating plan:', error);
+    res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+};
+
+
 export const getAllPlansHandler = async (
   req: Request,
   res: Response

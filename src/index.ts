@@ -4,6 +4,7 @@ import {
   saveUserPlanHandler,
   getLatestUserPlanHandler,
   savePlansDataHandler,
+  updatePlan,
   getAllPlansHandler,
   deletePlanByIdHandler,
   saveTermsHandler,
@@ -36,6 +37,8 @@ import {
     deleteContact,
     enterTerm,
     getTerm,
+    updateTerm,
+    deleteTerm,
     enterPrivacy,
     getPrivacy,
     updatePrivacy,
@@ -82,6 +85,7 @@ app.post("/plans", saveUserPlanHandler);
 app.get("/getplansDetails", getLatestUserPlanHandler);
 app.get("/getAllPlans", getAllPlansHandler);
 app.post("/savePlan", savePlansDataHandler);
+app.put("/update-plan/:id", updatePlan);
 app.delete("/plan/:id", deletePlanByIdHandler);
 app.post("/saveTerms", saveTermsHandler);
 app.get("/getTerms", getTermsHandler);
@@ -93,6 +97,8 @@ app.put("/edit-contact/:id",updateContact);
 app.delete("/delete-contact/:id",deleteContact);
 app.post("/add-term",enterTerm);
 app.get("/get-term",getTerm);
+app.put("/update-term/:id",updateTerm);
+app.delete("/delete-term/:id",deleteTerm);
 app.post("/add-privacy",enterPrivacy);
 app.get("/get-privacy",getPrivacy);
 
