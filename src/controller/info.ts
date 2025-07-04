@@ -112,7 +112,6 @@ export const updateContact = async (req: Request, res: Response): Promise<void> 
   }
 };
 
-
 export const deleteContact = async (req: Request, res: Response): Promise<void> => {
   try {
     const id = req.params.id;
@@ -245,7 +244,7 @@ export const getPrivacy = async (req: Request, res: Response): Promise<void> => 
 export const updatePrivacy = async (req: Request, res: Response): Promise<void> => {
   try {
     const id = req.params.id;
-    const { heading, title } = req.body;
+    const { title } = req.body;
 
     if (!id || !ObjectId.isValid(id)) {
       res.status(400).json({ success: false, message: "Invalid or missing ID" });
@@ -260,16 +259,10 @@ export const updatePrivacy = async (req: Request, res: Response): Promise<void> 
     const db = await connectToDatabase();
     const result = await db.collection("privacy").updateOne(
       { _id: new ObjectId(id) },
-      {
-        $set: {
-          title: title.trim(),
-          heading: heading || '',
-          updatedAt: new Date(),
-        },
-      }
+      { $set: { title: title.trim(), updatedAt: new Date() } }
     );
 
-    if (result.modifiedCount === 0) {
+if (result.modifiedCount === 0) {
       res.status(404).json({ success: false, message: "Privacy entry not found or not modified" });
       return;
     }
@@ -284,7 +277,7 @@ export const updatePrivacy = async (req: Request, res: Response): Promise<void> 
   }
 };
 
-
+    
 export const deletePrivacy = async (req: Request, res: Response): Promise<void> => {
   try {
     const id = req.params.id;
@@ -311,4 +304,3 @@ export const deletePrivacy = async (req: Request, res: Response): Promise<void> 
     res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
-
