@@ -143,27 +143,27 @@ export const editProfileHandler = async (req: Request, res: Response) => {
 };
 
 
-export const getProfileHandler = async (req: Request, res: Response) => {
-  const userId = req.query.id as string;
-  if (!ObjectId.isValid(userId)) {
-    res.status(400).json({ error: "Invalid user ID format" });
-    return;
-  }
+// export const getProfileHandler = async (req: Request, res: Response) => {
+//   const userId = req.query.id as string;
+//   if (!ObjectId.isValid(userId)) {
+//     res.status(400).json({ error: "Invalid user ID format" });
+//     return;
+//   }
 
-  const usersCollection = await getCollection("users");
-  const existingUser = await usersCollection.findOne({ _id: new ObjectId(userId) });
+//   const usersCollection = await getCollection("users");
+//   const existingUser = await usersCollection.findOne({ _id: new ObjectId(userId) });
 
-  if (!existingUser) {
-    res.status(400).json({ error: "User not found" });
-    return;
-  }
+//   if (!existingUser) {
+//     res.status(400).json({ error: "User not found" });
+//     return;
+//   }
 
-  res.status(200).json({
-    success: true,
-    message: "User fetched successfully",
-    data: existingUser,
-  });
-};
+//   res.status(200).json({
+//     success: true,
+//     message: "User fetched successfully",
+//     data: existingUser,
+//   });
+// };
 
 
 
@@ -230,6 +230,60 @@ export const getProfileHandler = async (req: Request, res: Response) => {
 //   }
 // };
 
+import dayjs from "dayjs";
+
+export const getProfileHandler = async (req: Request, res: Response) => {
+  const userId = req.query.id as string;
+
+  if (!ObjectId.isValid(userId)) {
+    res.status(400).json({ error: "Invalid user ID format" });
+    return;
+  }
+
+  const usersCollection = await getCollection("users");
+  const plansCollection = await getCollection("ai_plans");
+
+  const userObjectId = new ObjectId(userId);
+  const existingUser = await usersCollection.findOne({ _id: userObjectId });
+
+  if (!existingUser) {
+    res.status(400).json({ error: "User not found" });
+    return;
+  }
+
+  let planStatus = {
+    status: "no active plans",
+    plan_name: "",
+    expiry_date: ""
+  };
+
+  const userPlans = await plansCollection
+    .find({ user_id: userObjectId })
+    .sort({ created_at: -1 })
+    .limit(1)
+    .toArray();
+
+  if (userPlans.length > 0) {
+    const latestPlan = userPlans[0];
+    const today = dayjs().startOf("day");
+    const expiryDate = dayjs(latestPlan.expiry_date);
+
+    planStatus = {
+      plan_name: latestPlan.plan_detail?.plan || "",
+      expiry_date: expiryDate.toISOString(),
+      status: expiryDate.isBefore(today) ? "expired" : "active"
+    };
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "User fetched successfully",
+    data: {
+      ...existingUser,
+      plan_status: planStatus
+    },
+  });
+};
 
 
 export const updateUserPreferencesHandler = async (
