@@ -4,6 +4,7 @@ import {
   saveUserPlanHandler,
   getLatestUserPlanHandler,
   savePlansDataHandler,
+  updatePlan,
   getAllPlansHandler,
   deletePlanByIdHandler,
   saveTermsHandler,
@@ -84,6 +85,7 @@ app.post("/plans", saveUserPlanHandler);
 app.get("/getplansDetails", getLatestUserPlanHandler);
 app.get("/getAllPlans", getAllPlansHandler);
 app.post("/savePlan", savePlansDataHandler);
+app.put("/update-plan/:id", updatePlan);
 app.delete("/plan/:id", deletePlanByIdHandler);
 app.post("/saveTerms", saveTermsHandler);
 app.get("/getTerms", getTermsHandler);
