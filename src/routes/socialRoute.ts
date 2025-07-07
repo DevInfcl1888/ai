@@ -33,6 +33,7 @@ export const socialRegisterHandler = async (req: Request, res: Response) => {
     notification:"Never",
     phone_num:"",
     sms:false,
+    call_count:0
   };
 
   const result = await usersCollection.insertOne(newUser);
