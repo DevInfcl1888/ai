@@ -254,7 +254,9 @@ export const getProfileHandler = async (req: Request, res: Response) => {
   let planStatus = {
     status: "no active plans",
     plan_name: "",
-    expiry_date: ""
+    expiry_date: "",
+        benefits: [],
+
   };
 
   const userPlans = await plansCollection
@@ -270,6 +272,8 @@ export const getProfileHandler = async (req: Request, res: Response) => {
 
     planStatus = {
       plan_name: latestPlan.plan_detail?.plan || "",
+      benefits: latestPlan.plan_detail?.benefits || [],
+
       expiry_date: expiryDate.toISOString(),
       status: expiryDate.isBefore(today) ? "expired" : "active"
     };
@@ -280,7 +284,7 @@ export const getProfileHandler = async (req: Request, res: Response) => {
     message: "User fetched successfully",
     data: {
       ...existingUser,
-      plan_status: planStatus
+      plan_status: planStatus,
     },
   });
 };

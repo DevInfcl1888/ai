@@ -169,6 +169,13 @@ export const saveUserPlanHandler = async (
 
     // Insert the new plan
     const result = await aiPlansCollection.insertOne(planData);
+    const usersCollection = await getCollection("users");
+
+    // Reset call_count to 0 for the user
+    await usersCollection.updateOne(
+      { _id: userObjectId },
+      { $set: { call_count: 0 } }
+    );
 
     res.status(201).json({
       success: true,
