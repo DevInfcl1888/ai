@@ -162,7 +162,7 @@ async function registerUser(phoneNumber: string , device_token: string ) {
     phone_num: "",
     notification: "Never",
     sms: false,
-    call_count: 1, // <-- added this line
+    call_count: 0, // <-- added this line
 
   };
 
