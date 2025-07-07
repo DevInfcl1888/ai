@@ -318,69 +318,6 @@ import  {push}  from './services/sendPushNotification'; // adjust path
 // import admin from 'firebase-admin';
 
 
-// const sendNotify = async ({
-//   callSummary,
-//   userSentiment,
-//   toNumber,
-// }: {
-//   callSummary: string;
-//   userSentiment: string;
-//   toNumber: string;
-// }) => {
-//   console.log("🚀 Sending notification:");
-//   console.log("Sentiment:", userSentiment);
-//   console.log("To:", toNumber);
-
-//   // Map sentiment to human message
-//   let sentimentMessage = '';
-//   switch (userSentiment.toLowerCase()) {
-//     case 'positive':
-//       sentimentMessage = 'Customer is interested';
-//       break;
-//     case 'neutral':
-//       sentimentMessage = 'Customer is Neutral';
-//       break;
-//     case 'negative':
-//       sentimentMessage = 'Customer is not interested';
-//       break;
-//     default:
-//       sentimentMessage = 'Customer sentiment is unknown';
-//   }
-
-//   try {
-//     const usersCollection = await getCollection("users");
-//     const user = await usersCollection.findOne({ ai_number: toNumber });
-
-//     if (!user) {
-//       console.log("No user found for number:", toNumber);
-//       return;
-//     }
-
-//     const { sms, notification, device_token, contact } = user;
-
-//     // --- Send SMS if enabled ---
-//     if (sms === true) {
-//       console.log("📩 Sending SMS to", contact || "unknown contact");
-//       await sendSms(contact, sentimentMessage);
-//     } else {
-//       console.log("📵 SMS is disabled for this user.");
-//     }
-
-//     // --- Send Push Notification if allowed ---
-//     if (typeof notification === "string" && notification.toLowerCase() === "always") {
-//       if (device_token) {
-//         console.log("📱 Sending FCM push notification to device token:", device_token);
-//         await push(device_token, '📞 AI Call Result', sentimentMessage);
-//       } else {
-//         console.warn("⚠️ No device token found. Cannot send FCM notification.");
-//       }
-//     } else {
-//       console.log("🔕 Notifications are not enabled for this user.");
-//     }
-//   } catch (error) {
-//     console.error("💥 Error in sendNotify:", error);
-//   }
-// };
 const sendNotify = async ({
   callSummary,
   userSentiment,
@@ -410,11 +347,16 @@ const sendNotify = async ({
       sentimentMessage = 'Customer sentiment is unknown';
   }
 
-  const finalMessage = `Sentiment: ${userSentiment}\n${sentimentMessage}`;
+  const finalMessage = `${sentimentMessage}`;
+  const finalMess = `${sentimentMessage} \nCall Summary: ${callSummary}`;
 
   try {
     const usersCollection = await getCollection("users");
-    const user = await usersCollection.findOne({ ai_number: toNumber });
+    const user = await usersCollection.findOneAndUpdate(
+  { ai_number: toNumber },
+  { $inc: { call_count: 1 } },
+  { returnDocument: 'after' } // or { returnNewDocument: true } if you're using an older MongoDB driver
+);
 
     if (!user) {
       console.log("No user found for number:", toNumber);
@@ -426,7 +368,7 @@ const sendNotify = async ({
     // --- Send SMS if enabled ---
     if (sms === true) {
       console.log("📩 Sending SMS to", contact || "unknown contact");
-      await sendSms(contact, finalMessage);
+      await sendSms(contact, finalMess);
     } else {
       console.log("📵 SMS is disabled for this user.");
     }
@@ -446,6 +388,78 @@ const sendNotify = async ({
     console.error("💥 Error in sendNotify:", error);
   }
 };
+
+// const sendNotify = async ({
+//   callSummary,
+//   userSentiment,
+//   toNumber,
+// }: {
+//   callSummary: string;
+//   userSentiment: string;
+//   toNumber: string;
+// }) => {
+//   console.log("🚀 Sending notification:");
+//   console.log("Sentiment:", userSentiment);
+//   console.log("To:", toNumber);
+
+//   let sentimentMessage = '';
+//   switch (userSentiment.toLowerCase()) {
+//     case 'positive':
+//       sentimentMessage = 'Customer is interested';
+//       break;
+//     case 'neutral':
+//       sentimentMessage = 'Customer is Neutral';
+//       break;
+//     case 'negative':
+//       sentimentMessage = 'Customer is not interested';
+//       break;
+//     default:
+//       sentimentMessage = 'Customer sentiment is unknown';
+//   }
+
+//   const finalMessage = `Sentiment: ${userSentiment}\n${sentimentMessage}`;
+
+//   try {
+//     const usersCollection = await getCollection("users");
+
+//     const user = await usersCollection.findOneAndUpdate(
+//   { ai_number: toNumber },
+//   { $inc: { call_count: 1 } },
+//   { returnDocument: 'after' }
+// );
+
+// const updatedUser = user?.value;
+
+// if (!updatedUser) {
+//   console.log("No user found for number:", toNumber);
+//   return;
+// }
+
+// const { sms, notification, device_token, contact } = updatedUser;
+
+//     if (sms === true) {
+//       console.log("📩 Sending SMS to", contact || "unknown contact");
+//       await sendSms(contact, finalMessage);
+//     } else {
+//       console.log("📵 SMS is disabled for this user.");
+//     }
+
+//     if (typeof notification === "string" && notification.toLowerCase() === "always") {
+//       if (device_token) {
+//         console.log("📱 Sending FCM push notification to device token:", device_token);
+//         await push(device_token, '📞 AI Call Result', finalMessage);
+//       } else {
+//         console.warn("⚠️ No device token found. Cannot send FCM notification.");
+//       }
+//     } else {
+//       console.log("🔕 Notifications are not enabled for this user.");
+//     }
+
+//   } catch (error) {
+//     console.error("💥 Error in sendNotify:", error);
+//   }
+// };
+
 
 
 // const sendNotify = async ({
