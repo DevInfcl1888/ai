@@ -279,13 +279,16 @@ export const getProfileHandler = async (req: Request, res: Response) => {
     };
   }
 
+   const userData = {
+    ...existingUser,
+    call_count: typeof existingUser.call_count === "number" ? existingUser.call_count : 0,
+    plan_status: planStatus,
+  };
+
   res.status(200).json({
     success: true,
     message: "User fetched successfully",
-    data: {
-      ...existingUser,
-      plan_status: planStatus,
-    },
+    data : userData
   });
 };
 
