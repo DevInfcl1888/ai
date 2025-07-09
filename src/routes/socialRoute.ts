@@ -30,7 +30,7 @@ export const socialRegisterHandler = async (req: Request, res: Response) => {
     device_token,
     createdAt: new Date(),
     updatedAt: new Date(),
-    notification:"Never",
+    notification:"never",
     phone_num:"",
     sms:false,
     call_count:0
