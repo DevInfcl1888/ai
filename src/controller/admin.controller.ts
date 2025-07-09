@@ -320,7 +320,6 @@ export const saveUserPlanHandler = async (
 //     res.status(500).json({ error: "Internal server error" });
 //   }
 // };
-
 export const getLatestUserPlanHandler = async (
   req: Request,
   res: Response
@@ -370,8 +369,8 @@ export const getLatestUserPlanHandler = async (
       }
     }
 
-    // Only pick allowed fields
-    const filteredResponse = {
+    // Build response object
+    const filteredResponse: any = {
       _id: plan._id,
       active_plan: normalizedPlanDetail,
       benefits: benefits,
@@ -382,6 +381,11 @@ export const getLatestUserPlanHandler = async (
       days_left_to_expire: daysLeft,
     };
 
+    // Include call_limit if it exists
+    if ('call_limit' in plan && typeof plan.call_limit === 'number') {
+      filteredResponse.call_limit = plan.call_limit;
+    }
+
     res.status(200).json({
       success: true,
       data: filteredResponse,
@@ -391,6 +395,77 @@ export const getLatestUserPlanHandler = async (
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+// export const getLatestUserPlanHandler = async (
+//   req: Request,
+//   res: Response
+// ): Promise<void> => {
+//   try {
+//     const { user_id } = req.query;
+
+//     if (!user_id || !ObjectId.isValid(user_id as string)) {
+//       res.status(400).json({ error: "Valid user_id is required" });
+//       return;
+//     }
+
+//     const userObjectId = new ObjectId(user_id as string);
+//     const aiPlansCollection = await getCollection("ai_plans");
+
+//     const latestPlan = await aiPlansCollection
+//       .find({ user_id: userObjectId })
+//       .sort({ created_at: -1 })
+//       .limit(1)
+//       .toArray();
+
+//     if (latestPlan.length === 0) {
+//       res.status(404).json({ error: "No plans found for the user" });
+//       return;
+//     }
+
+//     const plan = latestPlan[0];
+
+//     // Calculate days left to expire
+//     const now = new Date();
+//     const expiryDate = new Date(plan.expiry_date);
+//     const timeDiff = expiryDate.getTime() - now.getTime();
+//     const daysLeft = Math.max(0, Math.ceil(timeDiff / (1000 * 60 * 60 * 24)));
+
+//     // Normalize plan_detail and benefits
+//     let normalizedPlanDetail: string | undefined = undefined;
+//     let benefits: any[] = [];
+
+//     if (typeof plan.plan_detail === "string") {
+//       normalizedPlanDetail = plan.plan_detail;
+//     } else if (typeof plan.plan_detail === "object") {
+//       if (plan.plan_detail.plan) {
+//         normalizedPlanDetail = plan.plan_detail.plan;
+//       }
+//       if (Array.isArray(plan.plan_detail.benefits)) {
+//         benefits = plan.plan_detail.benefits;
+//       }
+//     }
+
+//     // Only pick allowed fields
+//     const filteredResponse = {
+//       _id: plan._id,
+//       active_plan: normalizedPlanDetail,
+//       benefits: benefits,
+//       transaction_id: plan.transaction_id,
+//       user_id: plan.user_id,
+//       buy_date: plan.buy_date,
+//       expiry_date: plan.expiry_date,
+//       days_left_to_expire: daysLeft,
+//     };
+
+//     res.status(200).json({
+//       success: true,
+//       data: filteredResponse,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching latest user plan:", error);
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// };
 
 
 // export const getLatestUserPlanHandler = async (
@@ -457,7 +532,6 @@ export const getLatestUserPlanHandler = async (
 //     res.status(500).json({ error: "Internal server error" });
 //   }
 // };
-
 export const savePlansDataHandler = async (
   req: Request,
   res: Response
@@ -479,6 +553,10 @@ export const savePlansDataHandler = async (
 
     for (const plan of plans) {
       if (!plan.plan || typeof plan.plan !== "string") continue;
+
+      // Ensure call_limit is an integer, default to 0 if invalid
+      const call_limit = parseInt(plan.call_limit, 10);
+      plan.call_limit = Number.isNaN(call_limit) ? 0 : call_limit;
 
       const result = await plansCollection.updateOne(
         { plan: plan.plan }, // match by unique plan name
@@ -502,10 +580,53 @@ export const savePlansDataHandler = async (
   }
 };
 
+// export const savePlansDataHandler = async (
+//   req: Request,
+//   res: Response
+// ): Promise<void> => {
+//   try {
+//     const { plans } = req.body;
+
+//     if (!Array.isArray(plans) || plans.length === 0) {
+//       res
+//         .status(400)
+//         .json({ error: "Payload must contain a non-empty 'plans' array" });
+//       return;
+//     }
+
+//     const plansCollection = await getCollection("plans");
+
+//     let upsertedCount = 0;
+//     let modifiedCount = 0;
+
+//     for (const plan of plans) {
+//       if (!plan.plan || typeof plan.plan !== "string") continue;
+
+//       const result = await plansCollection.updateOne(
+//         { plan: plan.plan }, // match by unique plan name
+//         { $set: plan },
+//         { upsert: true }
+//       );
+
+//       if (result.upsertedCount > 0) upsertedCount++;
+//       if (result.modifiedCount > 0) modifiedCount++;
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       message: "Plans saved/updated successfully",
+//       upserted: upsertedCount,
+//       updated: modifiedCount,
+//     });
+//   } catch (error) {
+//     console.error("Error saving plans data:", error);
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// };
 export const updatePlan = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { plan, price, benefits } = req.body;
+    const { plan, price, benefits, call_limit } = req.body;
 
     if (!plan || plan.trim() === '') {
       res.status(400).json({ success: false, message: 'Plan name is required' });
@@ -514,16 +635,20 @@ export const updatePlan = async (req: Request, res: Response): Promise<void> => 
 
     const db = await connectToDatabase();
 
+    const updatedFields: any = {
+      plan: plan.trim(),
+      price: Number(price) || 0,
+      benefits: Array.isArray(benefits) ? benefits : [],
+      updatedAt: new Date(),
+    };
+
+    // Validate and assign call_limit as an integer
+    const parsedCallLimit = parseInt(call_limit, 10);
+    updatedFields.call_limit = Number.isNaN(parsedCallLimit) ? 0 : parsedCallLimit;
+
     const result = await db.collection('plans').updateOne(
       { _id: new ObjectId(id) },
-      {
-        $set: {
-          plan: plan.trim(),
-          price: Number(price) || 0,
-          benefits: Array.isArray(benefits) ? benefits : [],
-          updatedAt: new Date(),
-        },
-      }
+      { $set: updatedFields }
     );
 
     if (result.modifiedCount === 0) {
@@ -537,6 +662,42 @@ export const updatePlan = async (req: Request, res: Response): Promise<void> => 
     res.status(500).json({ success: false, message: 'Internal Server Error' });
   }
 };
+
+// export const updatePlan = async (req: Request, res: Response): Promise<void> => {
+//   try {
+//     const { id } = req.params;
+//     const { plan, price, benefits } = req.body;
+
+//     if (!plan || plan.trim() === '') {
+//       res.status(400).json({ success: false, message: 'Plan name is required' });
+//       return;
+//     }
+
+//     const db = await connectToDatabase();
+
+//     const result = await db.collection('plans').updateOne(
+//       { _id: new ObjectId(id) },
+//       {
+//         $set: {
+//           plan: plan.trim(),
+//           price: Number(price) || 0,
+//           benefits: Array.isArray(benefits) ? benefits : [],
+//           updatedAt: new Date(),
+//         },
+//       }
+//     );
+
+//     if (result.modifiedCount === 0) {
+//       res.status(404).json({ success: false, message: 'Plan not found or not updated' });
+//       return;
+//     }
+
+//     res.status(200).json({ success: true, message: 'Plan updated successfully' });
+//   } catch (error) {
+//     console.error('Error updating plan:', error);
+//     res.status(500).json({ success: false, message: 'Internal Server Error' });
+//   }
+// };
 
 
 export const getAllPlansHandler = async (
