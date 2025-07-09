@@ -243,6 +243,7 @@ export const getProfileHandler = async (req: Request, res: Response) => {
 
   const usersCollection = await getCollection("users");
   const plansCollection = await getCollection("ai_plans");
+  const allPlansCollection = await getCollection("plans"); // For fetching plan definition
 
   const userObjectId = new ObjectId(userId);
   const existingUser = await usersCollection.findOne({ _id: userObjectId });
@@ -270,16 +271,21 @@ export const getProfileHandler = async (req: Request, res: Response) => {
     const today = dayjs().startOf("day");
     const expiryDate = dayjs(latestPlan.expiry_date);
 
+    const planName = latestPlan.plan_detail?.plan || "";
+
     planStatus = {
-      plan_name: latestPlan.plan_detail?.plan || "",
+      plan_name: planName,
       benefits: latestPlan.plan_detail?.benefits || [],
       expiry_date: expiryDate.toISOString(),
       status: expiryDate.isBefore(today) ? "expired" : "active",
     };
 
-    // Conditionally include call_limit if it exists
-    if ("call_limit" in latestPlan && typeof latestPlan.call_limit === "number") {
-      planStatus.call_limit = latestPlan.call_limit;
+    // 🔍 Fetch call_limit from plans collection using plan name
+    if (planName) {
+      const matchingPlan = await allPlansCollection.findOne({ plan: planName });
+      if (matchingPlan && typeof matchingPlan.call_limit === "number") {
+        planStatus.call_limit = matchingPlan.call_limit;
+      }
     }
   }
 
@@ -295,6 +301,7 @@ export const getProfileHandler = async (req: Request, res: Response) => {
     data: userData,
   });
 };
+
 
 // export const getProfileHandler = async (req: Request, res: Response) => {
 //   const userId = req.query.id as string;
