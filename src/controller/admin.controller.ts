@@ -249,6 +249,8 @@ export const saveUserPlanHandler = async (
 //   }
 // };
 
+
+
 export const getLatestUserPlanHandler = async (
   req: Request,
   res: Response
@@ -283,24 +285,29 @@ export const getLatestUserPlanHandler = async (
     const timeDiff = expiryDate.getTime() - now.getTime();
     const daysLeft = Math.max(0, Math.ceil(timeDiff / (1000 * 60 * 60 * 24)));
 
-    // Normalize plan_detail
+    // Normalize plan_detail and benefits
     let normalizedPlanDetail: string | undefined = undefined;
+    let benefits: any[] = [];
+
     if (typeof plan.plan_detail === "string") {
       normalizedPlanDetail = plan.plan_detail;
-    } else if (typeof plan.plan_detail === "object" && plan.plan_detail.plan) {
-      normalizedPlanDetail = plan.plan_detail.plan;
+    } else if (typeof plan.plan_detail === "object") {
+      if (plan.plan_detail.plan) {
+        normalizedPlanDetail = plan.plan_detail.plan;
+      }
+      if (Array.isArray(plan.plan_detail.benefits)) {
+        benefits = plan.plan_detail.benefits;
+      }
     }
 
     // Only pick allowed fields
     const filteredResponse = {
-      // token: plan.token,
       _id: plan._id,
       active_plan: normalizedPlanDetail,
-
+      benefits: benefits,
       transaction_id: plan.transaction_id,
       user_id: plan.user_id,
       expiry_date: plan.expiry_date,
-
       days_left_to_expire: daysLeft,
     };
 
@@ -313,6 +320,71 @@ export const getLatestUserPlanHandler = async (
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+// export const getLatestUserPlanHandler = async (
+//   req: Request,
+//   res: Response
+// ): Promise<void> => {
+//   try {
+//     const { user_id } = req.query;
+
+//     if (!user_id || !ObjectId.isValid(user_id as string)) {
+//       res.status(400).json({ error: "Valid user_id is required" });
+//       return;
+//     }
+
+//     const userObjectId = new ObjectId(user_id as string);
+//     const aiPlansCollection = await getCollection("ai_plans");
+
+//     const latestPlan = await aiPlansCollection
+//       .find({ user_id: userObjectId })
+//       .sort({ created_at: -1 })
+//       .limit(1)
+//       .toArray();
+
+//     if (latestPlan.length === 0) {
+//       res.status(404).json({ error: "No plans found for the user" });
+//       return;
+//     }
+
+//     const plan = latestPlan[0];
+
+//     // Calculate days left to expire
+//     const now = new Date();
+//     const expiryDate = new Date(plan.expiry_date);
+//     const timeDiff = expiryDate.getTime() - now.getTime();
+//     const daysLeft = Math.max(0, Math.ceil(timeDiff / (1000 * 60 * 60 * 24)));
+
+//     // Normalize plan_detail
+//     let normalizedPlanDetail: string | undefined = undefined;
+//     if (typeof plan.plan_detail === "string") {
+//       normalizedPlanDetail = plan.plan_detail;
+//     } else if (typeof plan.plan_detail === "object" && plan.plan_detail.plan) {
+//       normalizedPlanDetail = plan.plan_detail.plan;
+//     }
+
+//     // Only pick allowed fields
+//     const filteredResponse = {
+//       // token: plan.token,
+//       _id: plan._id,
+//       active_plan: normalizedPlanDetail,
+
+//       transaction_id: plan.transaction_id,
+//       user_id: plan.user_id,
+//       expiry_date: plan.expiry_date,
+
+//       days_left_to_expire: daysLeft,
+//     };
+
+//     res.status(200).json({
+//       success: true,
+//       data: filteredResponse,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching latest user plan:", error);
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// };
 
 export const savePlansDataHandler = async (
   req: Request,
