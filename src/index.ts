@@ -177,28 +177,52 @@ import  {push}  from './services/sendPushNotification'; // adjust path
 //   try {
 //     const usersCollection = await getCollection("users");
 //     const user = await usersCollection.findOneAndUpdate(
-//   { ai_number: toNumber },
-//   { $inc: { call_count: 1 } },
-//   { returnDocument: 'after' } // or { returnNewDocument: true } if you're using an older MongoDB driver
-// );
+//       { ai_number: toNumber },
+//       { $inc: { call_count: 1 } },
+//       { returnDocument: 'after' }
+//     );
 
 //     if (!user) {
 //       console.log("No user found for number:", toNumber);
 //       return;
 //     }
 
-//     const { sms, notification, device_token, contact } = user;
+//     const {
+//       sms,
+//       sms_type,
+//       notification,
+//       device_token,
+//       contact,
+//     } = user;
 
-//     // --- Send SMS if enabled ---
-//     if (sms === true) {
-//       console.log("📩 Sending SMS to", contact || "unknown contact");
-//       await sendSms(contact, finalMess);
+//     const sentiment = userSentiment.toLowerCase();
+
+//     // --- Send SMS if enabled and allowed ---
+//     const canSendSMS =
+//       sms === true &&
+//       (
+//         (sms_type?.toLowerCase() === 'always') ||
+//         (sms_type?.toLowerCase() === 'interested' && sentiment === 'positive')
+//       );
+
+//     if (canSendSMS) {
+//       if (contact) {
+//         console.log("📩 Sending SMS to", contact);
+//         await sendSms(contact, finalMess);
+//       } else {
+//         console.warn("⚠️ No contact found. Cannot send SMS.");
+//       }
 //     } else {
-//       console.log("📵 SMS is disabled for this user.");
+//       console.log("📵 SMS is disabled or not applicable for this sentiment.");
 //     }
 
 //     // --- Send Push Notification if allowed ---
-//     if (typeof notification === "string" && notification.toLowerCase() === "always") {
+//     const notifSetting = notification?.toLowerCase();
+//     const canSendNotif =
+//       (notifSetting === 'always') ||
+//       (notifSetting === 'interested' && sentiment === 'positive');
+
+//     if (canSendNotif) {
 //       if (device_token) {
 //         console.log("📱 Sending FCM push notification to device token:", device_token);
 //         await push(device_token, '📞 AI Call Result', finalMessage);
@@ -206,8 +230,9 @@ import  {push}  from './services/sendPushNotification'; // adjust path
 //         console.warn("⚠️ No device token found. Cannot send FCM notification.");
 //       }
 //     } else {
-//       console.log("🔕 Notifications are not enabled for this user.");
+//       console.log("🔕 Notifications are disabled or not applicable for this sentiment.");
 //     }
+
 //   } catch (error) {
 //     console.error("💥 Error in sendNotify:", error);
 //   }
@@ -228,7 +253,9 @@ const sendNotify = async ({
 
   // Map sentiment to message
   let sentimentMessage = '';
-  switch (userSentiment.toLowerCase()) {
+  const sentiment = userSentiment.toLowerCase();
+
+  switch (sentiment) {
     case 'positive':
       sentimentMessage = 'Customer is interested';
       break;
@@ -266,15 +293,11 @@ const sendNotify = async ({
       contact,
     } = user;
 
-    const sentiment = userSentiment.toLowerCase();
-
-    // --- Send SMS if enabled and allowed ---
+    // --- Determine if we can send SMS ---
     const canSendSMS =
       sms === true &&
-      (
-        (sms_type?.toLowerCase() === 'always') ||
-        (sms_type?.toLowerCase() === 'interested' && sentiment === 'positive')
-      );
+      sms_type?.toLowerCase() === 'interested' &&
+      (sentiment === 'positive' || sentiment === 'neutral');
 
     if (canSendSMS) {
       if (contact) {
@@ -287,11 +310,10 @@ const sendNotify = async ({
       console.log("📵 SMS is disabled or not applicable for this sentiment.");
     }
 
-    // --- Send Push Notification if allowed ---
-    const notifSetting = notification?.toLowerCase();
+    // --- Determine if we can send Notification ---
     const canSendNotif =
-      (notifSetting === 'always') ||
-      (notifSetting === 'interested' && sentiment === 'positive');
+      notification?.toLowerCase() === 'interested' &&
+      (sentiment === 'positive' || sentiment === 'neutral');
 
     if (canSendNotif) {
       if (device_token) {
@@ -308,7 +330,6 @@ const sendNotify = async ({
     console.error("💥 Error in sendNotify:", error);
   }
 };
-
 
 app.post("/send-sms", sendSmsHandler);
 
