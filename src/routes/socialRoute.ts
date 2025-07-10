@@ -110,6 +110,32 @@ export const socialLoginHandler = async (req: Request, res: Response) => {
 
 
 
+// export const deleteAccountHandler = async (req: Request, res: Response) => {
+//   const userId = req.query.id as string;
+//   console.log("Received user ID:", userId);
+
+//   if (!userId || !ObjectId.isValid(userId)) {
+//     res.status(400).json({ error: "Valid user ID is required" });
+//     return;
+//   }
+
+//   const usersCollection = await getCollection("users");
+
+//   const result = await usersCollection.deleteOne({ _id: new ObjectId(userId) });
+//   console.log("Deleted with ObjectId?", result.deletedCount);
+
+//   if (result.deletedCount === 0) {
+//     res.status(404).json({ error: "User not found or already deleted" });
+//     return;
+//   }
+
+//   res.status(200).json({
+//     success: true,
+//     message: "User account deleted successfully",
+//   });
+// };
+
+
 export const deleteAccountHandler = async (req: Request, res: Response) => {
   const userId = req.query.id as string;
   console.log("Received user ID:", userId);
@@ -119,18 +145,35 @@ export const deleteAccountHandler = async (req: Request, res: Response) => {
     return;
   }
 
+  const userObjectId = new ObjectId(userId);
   const usersCollection = await getCollection("users");
+  const deletedAccountsCollection = await getCollection("deletedAccounts");
 
-  const result = await usersCollection.deleteOne({ _id: new ObjectId(userId) });
-  console.log("Deleted with ObjectId?", result.deletedCount);
+  // Step 1: Find the user
+  const userDoc = await usersCollection.findOne({ _id: userObjectId });
 
-  if (result.deletedCount === 0) {
-    res.status(404).json({ error: "User not found or already deleted" });
+  if (!userDoc) {
+    res.status(404).json({ error: "User not found" });
     return;
   }
 
+  // Step 2: Insert into deletedAccounts with deletedDate
+  const insertResult = await deletedAccountsCollection.insertOne({
+    ...userDoc,
+    deletedDate: new Date(), // <-- added deletedDate here
+  });
+
+  if (!insertResult.acknowledged) {
+    res.status(500).json({ error: "Failed to archive user account" });
+    return;
+  }
+
+  // Step 3: Delete from users collection
+  const deleteResult = await usersCollection.deleteOne({ _id: userObjectId });
+  console.log("Deleted from users?", deleteResult.deletedCount);
+
   res.status(200).json({
     success: true,
-    message: "User account deleted successfully",
+    message: "User account moved to deletedAccounts successfully",
   });
 };
