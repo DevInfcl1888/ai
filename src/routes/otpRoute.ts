@@ -100,7 +100,6 @@ export async function sendOtpHandler(
 //     next(error);
 //   }
 // }
-
 export async function verifyOTPhandler(
   req: Request,
   res: Response,
@@ -117,11 +116,36 @@ export async function verifyOTPhandler(
 
     const isVerified = verifyOtp(phoneNumber, otp);
     const usersCollection = await getCollection("users");
-    const existingUser = await usersCollection.findOne({ phone: phoneNumber });
+    const deletedCollection = await getCollection("deletedAccounts");
+
+    let existingUser = await usersCollection.findOne({ phone: phoneNumber });
 
     if (isVerified) {
+      // Check in deletedAccounts if not found in users
+      if (!existingUser) {
+        const deletedUser = await deletedCollection.findOne({ phone: phoneNumber });
+
+        if (deletedUser) {
+          // Remove deletedDate before restoring
+          const { deletedDate, ...restoredUser } = deletedUser;
+
+          // Insert back into users
+          await usersCollection.insertOne({
+            ...restoredUser,
+            updatedAt: new Date(),
+            device_token: device_token || restoredUser.device_token || null,
+          });
+
+          // Delete from deletedAccounts
+          await deletedCollection.deleteOne({ _id: deletedUser._id });
+
+          // Update reference
+          existingUser = await usersCollection.findOne({ phone: phoneNumber });
+        }
+      }
+
+      // Update device token if needed
       if (existingUser && device_token) {
-        // If user has no device_token or a different one, update it
         if (!existingUser.device_token || existingUser.device_token !== device_token) {
           await usersCollection.updateOne(
             { _id: existingUser._id },
@@ -153,8 +177,7 @@ export async function verifyOTPhandler(
   }
 }
 
-
-async function registerUser(phoneNumber: string , device_token: string ) {
+async function registerUser(phoneNumber: string, device_token: string) {
   const newUser: User = {
     phone: phoneNumber,
     createdAt: new Date(),
@@ -162,8 +185,8 @@ async function registerUser(phoneNumber: string , device_token: string ) {
     phone_num: "",
     notification: "never",
     sms: false,
-    call_count: 0, // <-- added this line
-
+    call_count: 0,
+    device_token: device_token || "",
   };
 
   const usersCollection = await getCollection("users");
@@ -171,11 +194,88 @@ async function registerUser(phoneNumber: string , device_token: string ) {
 
   return {
     id: result.insertedId,
-    device_token : device_token,
+    device_token,
     phone: phoneNumber,
     createdAt: newUser.createdAt,
     updatedAt: newUser.updatedAt,
   };
 }
+
+// export async function verifyOTPhandler(
+//   req: Request,
+//   res: Response,
+//   next: NextFunction
+// ): Promise<void> {
+//   try {
+//     const { phoneNumber, otp, type, device_token } = req.body;
+//     console.log("device", device_token);
+
+//     if (!phoneNumber || !otp) {
+//       res.status(400).json({ error: "Phone number and OTP are required" });
+//       return;
+//     }
+
+//     const isVerified = verifyOtp(phoneNumber, otp);
+//     const usersCollection = await getCollection("users");
+//     const existingUser = await usersCollection.findOne({ phone: phoneNumber });
+
+//     if (isVerified) {
+//       if (existingUser && device_token) {
+//         // If user has no device_token or a different one, update it
+//         if (!existingUser.device_token || existingUser.device_token !== device_token) {
+//           await usersCollection.updateOne(
+//             { _id: existingUser._id },
+//             { $set: { device_token: device_token } }
+//           );
+//           existingUser.device_token = device_token;
+//         }
+//       }
+
+//       if (type === "register") {
+//         const result = await registerUser(phoneNumber, device_token);
+//         res.status(200).json({
+//           success: true,
+//           message: "User registered successfully",
+//           data: { ...result, _id: new ObjectId(result.id) },
+//         });
+//       } else {
+//         res.status(200).json({
+//           success: true,
+//           message: "User logged in successfully",
+//           data: existingUser,
+//         });
+//       }
+//     } else {
+//       res.status(400).json({ error: "Entered OTP must be wrong or expired" });
+//     }
+//   } catch (error) {
+//     next(error);
+//   }
+// }
+
+
+// async function registerUser(phoneNumber: string , device_token: string ) {
+//   const newUser: User = {
+//     phone: phoneNumber,
+//     createdAt: new Date(),
+//     updatedAt: new Date(),
+//     phone_num: "",
+//     notification: "never",
+//     sms: false,
+//     call_count: 0, // <-- added this line
+
+//   };
+
+//   const usersCollection = await getCollection("users");
+//   const result = await usersCollection.insertOne(newUser);
+
+//   return {
+//     id: result.insertedId,
+//     device_token : device_token,
+//     phone: phoneNumber,
+//     createdAt: newUser.createdAt,
+//     updatedAt: newUser.updatedAt,
+//   };
+// }
 
 export default router;

@@ -3,48 +3,48 @@ import { getCollection } from "../config/database";
 import { SocialUser } from "../models/user";
 import { ObjectId } from "mongodb";
 
-export const socialRegisterHandler = async (req: Request, res: Response) => {
-  const { socialId, socialType, user, device_token } = req.body;
+// export const socialRegisterHandler = async (req: Request, res: Response) => {
+//   const { socialId, socialType, user, device_token } = req.body;
 
-  if (!socialId || !socialType) {
-    res
-      .status(400)
-      .json({ error: "Social ID and social type  are required" });
-    return;
-  }
+//   if (!socialId || !socialType) {
+//     res
+//       .status(400)
+//       .json({ error: "Social ID and social type  are required" });
+//     return;
+//   }
 
-  const usersCollection = await getCollection("users");
-  const existingUser = await usersCollection.findOne({
-    $or: [{ socialId, socialType }],
-  });
+//   const usersCollection = await getCollection("users");
+//   const existingUser = await usersCollection.findOne({
+//     $or: [{ socialId, socialType }],
+//   });
 
-  if (existingUser) {
-    res.status(400).json({ error: "User already exists" });
-    return;
-  }
+//   if (existingUser) {
+//     res.status(400).json({ error: "User already exists" });
+//     return;
+//   }
 
-  const newUser: SocialUser = {
-    socialId,
-    socialType,
-    user,
-    device_token,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    notification:"never",
-    phone_num:"",
-    sms:false,
-    call_count:0
-  };
+//   const newUser: SocialUser = {
+//     socialId,
+//     socialType,
+//     user,
+//     device_token,
+//     createdAt: new Date(),
+//     updatedAt: new Date(),
+//     notification:"never",
+//     phone_num:"",
+//     sms:false,
+//     call_count:0
+//   };
 
-  const result = await usersCollection.insertOne(newUser);
-  res
-    .status(200)
-    .json({
-      success: true,
-      message: "User registered successfully",
-      user: {...result, _id: result.insertedId},
-    });
-};
+//   const result = await usersCollection.insertOne(newUser);
+//   res
+//     .status(200)
+//     .json({
+//       success: true,
+//       message: "User registered successfully",
+//       user: {...result, _id: result.insertedId},
+//     });
+// };
 
 
 // export const socialLoginHandler = async (req: Request, res: Response) => {
@@ -66,6 +66,78 @@ export const socialRegisterHandler = async (req: Request, res: Response) => {
 //     user: isUserExists,
 //   });
 // };
+
+export const socialRegisterHandler = async (req: Request, res: Response) => {
+  const { socialId, socialType, user, device_token } = req.body;
+
+  if (!socialId || !socialType) {
+    res.status(400).json({ error: "Social ID and social type are required" });
+    return;
+  }
+
+  const usersCollection = await getCollection("users");
+  const deletedCollection = await getCollection("deletedAccounts");
+
+  // Step 1: Check in users collection
+  const existingUser = await usersCollection.findOne({ socialId, socialType });
+
+  if (existingUser) {
+    res.status(400).json({ error: "User already exists" });
+    return;
+  }
+
+  // Step 2: Check in deletedAccounts
+  const deletedUser = await deletedCollection.findOne({ socialId, socialType });
+
+  if (deletedUser) {
+    const { deletedDate, _id, ...restoredUserFields } = deletedUser;
+
+    const revivedUser: SocialUser = {
+      socialId: restoredUserFields.socialId,
+      socialType: restoredUserFields.socialType,
+      user: restoredUserFields.user,
+      device_token: device_token || restoredUserFields.device_token || null,
+      createdAt: restoredUserFields.createdAt || new Date(),
+      updatedAt: new Date(),
+      notification: restoredUserFields.notification || "never",
+      phone_num: restoredUserFields.phone_num || "",
+      sms: restoredUserFields.sms ?? false,
+      call_count: restoredUserFields.call_count ?? 0,
+    };
+
+    const insertResult = await usersCollection.insertOne(revivedUser);
+    await deletedCollection.deleteOne({ _id });
+
+    res.status(200).json({
+      success: true,
+      message: "User restored from deleted accounts",
+      user: { ...revivedUser, _id: insertResult.insertedId },
+    });
+    return;
+  }
+
+  // Step 3: Register new user
+  const newUser: SocialUser = {
+    socialId,
+    socialType,
+    user,
+    device_token,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    notification: "never",
+    phone_num: "",
+    sms: false,
+    call_count: 0,
+  };
+
+  const result = await usersCollection.insertOne(newUser);
+
+  res.status(200).json({
+    success: true,
+    message: "User registered successfully",
+    user: { ...newUser, _id: result.insertedId },
+  });
+};
 
 export const socialLoginHandler = async (req: Request, res: Response) => {
   const { socialId, socialType, device_token } = req.body;

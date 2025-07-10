@@ -6,6 +6,7 @@ export interface User {
     notification: string;
     sms: boolean;
     call_count: number; // <-- include this in the type definition
+    device_token: string
 
 }
 
