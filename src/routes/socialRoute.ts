@@ -33,7 +33,7 @@ import { ObjectId } from "mongodb";
 //     notification:"never",
 //     phone_num:"",
 //     sms:false,
-//     call_count:0
+//     call_count:0,
 //   };
 
 //   const result = await usersCollection.insertOne(newUser);
@@ -67,6 +67,8 @@ import { ObjectId } from "mongodb";
 //   });
 // };
 
+
+
 export const socialRegisterHandler = async (req: Request, res: Response) => {
   const { socialId, socialType, user, device_token } = req.body;
 
@@ -86,35 +88,35 @@ export const socialRegisterHandler = async (req: Request, res: Response) => {
     return;
   }
 
-  // Step 2: Check in deletedAccounts
-  const deletedUser = await deletedCollection.findOne({ socialId, socialType });
+  // // Step 2: Check in deletedAccounts
+  // const deletedUser = await deletedCollection.findOne({ socialId, socialType });
 
-  if (deletedUser) {
-    const { deletedDate, _id, ...restoredUserFields } = deletedUser;
+  // if (deletedUser) {
+  //   const { deletedDate, _id, ...restoredUserFields } = deletedUser;
 
-    const revivedUser: SocialUser = {
-      socialId: restoredUserFields.socialId,
-      socialType: restoredUserFields.socialType,
-      user: restoredUserFields.user,
-      device_token: device_token || restoredUserFields.device_token || null,
-      createdAt: restoredUserFields.createdAt || new Date(),
-      updatedAt: new Date(),
-      notification: restoredUserFields.notification || "never",
-      phone_num: restoredUserFields.phone_num || "",
-      sms: restoredUserFields.sms ?? false,
-      call_count: restoredUserFields.call_count ?? 0,
-    };
+  //   const revivedUser: SocialUser = {
+  //     socialId: restoredUserFields.socialId,
+  //     socialType: restoredUserFields.socialType,
+  //     user: restoredUserFields.user,
+  //     device_token: device_token || restoredUserFields.device_token || null,
+  //     createdAt: restoredUserFields.createdAt || new Date(),
+  //     updatedAt: new Date(),
+  //     notification: restoredUserFields.notification || "never",
+  //     phone_num: restoredUserFields.phone_num || "",
+  //     sms: restoredUserFields.sms ?? false,
+  //     call_count: restoredUserFields.call_count ?? 0,
+  //   };
 
-    const insertResult = await usersCollection.insertOne(revivedUser);
-    await deletedCollection.deleteOne({ _id });
+  //   const insertResult = await usersCollection.insertOne(revivedUser);
+  //   await deletedCollection.deleteOne({ _id });
 
-    res.status(200).json({
-      success: true,
-      message: "User restored from deleted accounts",
-      user: { ...revivedUser, _id: insertResult.insertedId },
-    });
-    return;
-  }
+  //   res.status(200).json({
+  //     success: true,
+  //     message: "User restored from deleted accounts",
+  //     user: { ...revivedUser, _id: insertResult.insertedId },
+  //   });
+  //   return;
+  // }
 
   // Step 3: Register new user
   const newUser: SocialUser = {
