@@ -231,16 +231,16 @@ export const deleteAccountHandler = async (req: Request, res: Response) => {
     return;
   }
 
-  // Step 2: Insert into deletedAccounts with deletedDate
-  const insertResult = await deletedAccountsCollection.insertOne({
-    ...userDoc,
-    deletedDate: new Date(), // <-- added deletedDate here
-  });
+  // // Step 2: Insert into deletedAccounts with deletedDate
+  // const insertResult = await deletedAccountsCollection.insertOne({
+  //   ...userDoc,
+  //   deletedDate: new Date(), // <-- added deletedDate here
+  // });
 
-  if (!insertResult.acknowledged) {
-    res.status(500).json({ error: "Failed to archive user account" });
-    return;
-  }
+  // if (!insertResult.acknowledged) {
+  //   res.status(500).json({ error: "Failed to archive user account" });
+  //   return;
+  // }
 
   // Step 3: Delete from users collection
   const deleteResult = await usersCollection.deleteOne({ _id: userObjectId });
