@@ -258,6 +258,7 @@ export const getProfileHandler = async (req: Request, res: Response) => {
     plan_name: "",
     expiry_date: "",
     benefits: [],
+    balance : 0
   };
 
   const userPlans = await plansCollection
@@ -278,6 +279,7 @@ export const getProfileHandler = async (req: Request, res: Response) => {
       benefits: latestPlan.plan_detail?.benefits || [],
       expiry_date: expiryDate.toISOString(),
       status: expiryDate.isBefore(today) ? "expired" : "active",
+      balance : latestPlan.plan_detail?.call_limit || 0
     };
 
     // 🔍 Fetch call_limit from plans collection using plan name

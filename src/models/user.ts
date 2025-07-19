@@ -15,6 +15,7 @@ export interface SocialUser {
     socialId: string;
     socialType: string;
     user: any;
+    phone: string;
     device_token: string
     createdAt: Date;
     updatedAt: Date;

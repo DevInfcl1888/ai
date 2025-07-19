@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Call Tracker WebSocket Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .call-item {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .call-active {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+        .call-ended {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        .call-analyzed {
+            border-left-color: #ffc107;
+            background: #fff3cd;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .log {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .input-group {
+            margin: 10px 0;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .metric-card {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .metric-label {
+            font-size: 14px;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📞 Call Tracker WebSocket Client</h1>
+        
+        <div class="input-group">
+            <label for="wsUrl">WebSocket URL:</label>
+            <input type="text" id="wsUrl" value="ws://90d2320658bf.ngrok-free.app" placeholder="ws://90d2320658bf.ngrok-free.app">
+        </div>
+        
+        <div class="controls">
+            <button onclick="connect()">Connect</button>
+            <button onclick="disconnect()">Disconnect</button>
+            <button onclick="requestActiveCalls()">Get Active Calls</button>
+            <button onclick="clearLog()">Clear Log</button>
+        </div>
+        
+        <div id="status" class="status disconnected">❌ Disconnected</div>
+        
+        <div class="metrics">
+            <div class="metric-card">
+                <div class="metric-value" id="activeCallsCount">0</div>
+                <div class="metric-label">Active Calls</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="totalCallsToday">0</div>
+                <div class="metric-label">Total Calls Today</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="avgCallDuration">0</div>
+                <div class="metric-label">Avg Duration (min)</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="connectionTime">--:--</div>
+                <div class="metric-label">Connected Time</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>📋 Active Calls</h2>
+        <div id="activeCalls">
+            <p>No active calls</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>📊 Recent Events</h2>
+        <div id="recentEvents">
+            <p>No recent events</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>📝 WebSocket Log</h2>
+        <div id="log" class="log"></div>
+    </div>
+
+    <script>
+        let ws = null;
+        let connectionStartTime = null;
+        let connectionTimer = null;
+        let activeCalls = new Map();
+        let recentEvents = [];
+        let totalCallsToday = 0;
+        let callDurations = [];
+
+        function updateConnectionTime() {
+            if (connectionStartTime) {
+                const now = new Date();
+                const diff = now - connectionStartTime;
+                const minutes = Math.floor(diff / 60000);
+                const seconds = Math.floor((diff % 60000) / 1000);
+                document.getElementById('connectionTime').textContent = 
+                    `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            }
+        }
+
+        function updateMetrics() {
+            document.getElementById('activeCallsCount').textContent = activeCalls.size;
+            document.getElementById('totalCallsToday').textContent = totalCallsToday;
+            
+            if (callDurations.length > 0) {
+                const avg = callDurations.reduce((a, b) => a + b, 0) / callDurations.length;
+                document.getElementById('avgCallDuration').textContent = Math.round(avg / 60);
+            }
+        }
+
+        function connect() {
+            const url = document.getElementById('wsUrl').value;
+            
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                log('Already connected');
+                return;
+            }
+
+            log(`Connecting to ${url}...`);
+            
+            try {
+                ws = new WebSocket(url);
+                
+                ws.onopen = function(event) {
+                    log('✅ Connected to WebSocket server');
+                    document.getElementById('status').className = 'status connected';
+                    document.getElementById('status').textContent = '✅ Connected';
+                    
+                    connectionStartTime = new Date();
+                    connectionTimer = setInterval(updateConnectionTime, 1000);
+                    
+                    // Send subscribe message
+                    sendMessage({
+                        type: 'subscribe',
+                        data: { message: 'Client ready for updates' },
+                        timestamp: Date.now()
+                    });
+                };
+                
+                ws.onmessage = function(event) {
+                    try {
+                        const message = JSON.parse(event.data);
+                        handleMessage(message);
+                    } catch (error) {
+                        log('❌ Error parsing message: ' + error.message);
+                    }
+                };
+                
+                ws.onclose = function(event) {
+                    log(`🔌 Connection closed: ${event.code} - ${event.reason}`);
+                    document.getElementById('status').className = 'status disconnected';
+                    document.getElementById('status').textContent = '❌ Disconnected';
+                    
+                    if (connectionTimer) {
+                        clearInterval(connectionTimer);
+                    }    
+                };
+                
+                ws.onerror = function(error) {
+                    log('❌ WebSocket error: ' + error.message);
+                };
+            } catch (error) {
+                log('❌ Error connecting to WebSocket server: ' + error.message);
+            }
+        }
+
+        function sendMessage(message) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(message));
+            }
+        }
