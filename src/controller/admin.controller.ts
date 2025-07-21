@@ -126,7 +126,10 @@ export const getBlockedUsers = async (
   }
 };
 
-import { getCollection } from "../config/database";
+
+
+import { getCollection } from '../config/database';
+
 export const saveUserPlanHandler = async (
   req: Request,
   res: Response
@@ -142,20 +145,33 @@ export const saveUserPlanHandler = async (
       user_id,
     } = req.body;
 
-    // Validate required fields
     if (!user_id) {
       res.status(400).json({ error: "Missing required fields" });
       return;
     }
 
     const aiPlansCollection = await getCollection("ai_plans");
-
+    const usersCollection = await getCollection("users");
     const userObjectId = new ObjectId(user_id);
 
-    // Delete previous plan(s) for the user
-    await aiPlansCollection.deleteMany({ user_id: userObjectId });
+    // Get the existing plan for the user
+    const existingPlan = await aiPlansCollection.findOne({ user_id: userObjectId });
 
-    // Prepare new plan data
+    let newCallLimit = plan_detail?.call_limit || 0;
+
+    if (existingPlan && existingPlan.plan_detail?.call_limit !== undefined) {
+      const previousCallLimit = existingPlan.plan_detail.call_limit;
+
+      if (previousCallLimit < 0) {
+        // Deduct previous negative usage from new call_limit
+        newCallLimit += previousCallLimit; // previousCallLimit is negative, so this is subtraction
+      }
+      // Else: If previous limit is positive or zero, we leave newCallLimit as is (replace)
+    }
+
+    // Update the plan_detail's call_limit before saving
+    plan_detail.call_limit = newCallLimit;
+
     const planData = {
       user_id: userObjectId,
       plan_detail,
@@ -167,26 +183,91 @@ export const saveUserPlanHandler = async (
       created_at: new Date(),
     };
 
-    // Insert the new plan
-    const result = await aiPlansCollection.insertOne(planData);
-    const usersCollection = await getCollection("users");
+    // Replace or insert the user's plan (upsert)
+    const result = await aiPlansCollection.updateOne(
+      { user_id: userObjectId },
+      { $set: planData },
+      { upsert: true }
+    );
 
-    // Reset call_count to 0 for the user
+    // Reset call count to 0
     await usersCollection.updateOne(
       { _id: userObjectId },
       { $set: { call_count: 0 } }
     );
 
-    res.status(201).json({
+    res.status(200).json({
       success: true,
-      message: "Plan saved successfully",
-      plan_id: result.insertedId,
+      message: "Plan updated successfully",
+      upserted: result.upsertedId || null,
     });
   } catch (error) {
     console.error("Error saving user plan:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+// import { getCollection } from "../config/database";
+// export const saveUserPlanHandler = async (
+//   req: Request,
+//   res: Response
+// ): Promise<void> => {
+//   try {
+//     const {
+//       plan_detail,
+//       expiry_date,
+//       buy_date,
+//       validity,
+//       token,
+//       transaction_id,
+//       user_id,
+//     } = req.body;
+
+//     // Validate required fields
+//     if (!user_id) {
+//       res.status(400).json({ error: "Missing required fields" });
+//       return;
+//     }
+
+//     const aiPlansCollection = await getCollection("ai_plans");
+
+//     const userObjectId = new ObjectId(user_id);
+
+//     // Delete previous plan(s) for the user
+//     await aiPlansCollection.deleteMany({ user_id: userObjectId });
+
+//     // Prepare new plan data
+//     const planData = {
+//       user_id: userObjectId,
+//       plan_detail,
+//       expiry_date: new Date(expiry_date),
+//       buy_date: new Date(buy_date),
+//       validity,
+//       token,
+//       transaction_id,
+//       created_at: new Date(),
+//     };
+
+//     // Insert the new plan
+//     const result = await aiPlansCollection.insertOne(planData);
+//     const usersCollection = await getCollection("users");
+
+//     // Reset call_count to 0 for the user
+//     await usersCollection.updateOne(
+//       { _id: userObjectId },
+//       { $set: { call_count: 0 } }
+//     );
+
+//     res.status(201).json({
+//       success: true,
+//       message: "Plan saved successfully",
+//       plan_id: result.insertedId,
+//     });
+//   } catch (error) {
+//     console.error("Error saving user plan:", error);
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// };
 
 // import { Request, Response } from "express";
 // import { ObjectId } from "mongodb";

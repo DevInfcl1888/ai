@@ -50,6 +50,7 @@ import {
 import router from "./routes/admin.route";
 
 import { sendSmsHandler } from "./controller/send.controller";
+import {createBusiness} from "./controller/business.controller";
 
 //Info
 import {
@@ -1372,6 +1373,7 @@ app.post("/add-privacy",enterPrivacy);
 app.get("/get-privacy",getPrivacy);
 app.put("/edit-privacy/:id",updatePrivacy);
 app.delete("/delete-privacy/:id",deletePrivacy);
+app.post("/createBusiness",createBusiness);
 
 app.use("/admin", router);
 
