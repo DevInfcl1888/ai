@@ -51,6 +51,7 @@ import router from "./routes/admin.route";
 
 import { sendSmsHandler } from "./controller/send.controller";
 import {createBusiness} from "./controller/business.controller";
+import {saveDefaultVal, getDefaultVal, saveAiDataToUser, saveGlobalValue} from "./controller/defaultVal.controller";
 
 //Info
 import {
@@ -1374,6 +1375,13 @@ app.get("/get-privacy",getPrivacy);
 app.put("/edit-privacy/:id",updatePrivacy);
 app.delete("/delete-privacy/:id",deletePrivacy);
 app.post("/createBusiness",createBusiness);
+app.post("/default-val", saveDefaultVal);
+app.get("/getDefaultVal", getDefaultVal);
+
+app.post("/save-ai-data/:userId", saveAiDataToUser);
+app.post("/saveGlobalValue", saveGlobalValue);
+
+
 
 app.use("/admin", router);
 
