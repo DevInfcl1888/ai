@@ -153,3 +153,42 @@ export const saveGlobalValue = async (req: Request, res: Response): Promise<void
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
+
+export const updateAIData = async (req: Request, res: Response) : Promise<void> => {
+  try {
+    const { userId, version, ai_data } = req.body;
+
+    if (!userId || typeof version !== 'number' || !ai_data) {
+       res.status(400).json({ error: "Missing userId, version, or ai_data" });
+       return;
+    }
+
+    const usersCollection = await getCollection("users");
+
+    const result = await usersCollection.updateOne(
+      { _id: new ObjectId(userId), "ai_data.version": version },
+      {
+        $set: {
+          "ai_data": {
+            ...ai_data,
+            version: version + 1 // increment version
+          },
+          updatedAt: new Date()
+        }
+      }
+    );
+
+    if (result.matchedCount === 0) {
+       res.status(409).json({ success: false, message: "Version mismatch or user not found" });
+       return
+    }
+
+     res.status(200).json({ success: true, message: "ai_data updated" });
+     return
+  } catch (error) {
+    console.error("Error updating ai_data:", error);
+     res.status(500).json({ error: "Internal Server Error" });
+     return
+  }
+};
