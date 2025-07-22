@@ -1380,6 +1380,9 @@ app.get("/getDefaultVal", getDefaultVal);
 
 app.post("/save-ai-data/:userId", saveAiDataToUser);
 app.post("/updateAIData", updateAIData);
+app.post("/saveGlobalValue", saveGlobalValue
+  
+);
 app.get("/getAllGlobalData", getAllGlobalData);
 
 
