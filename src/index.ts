@@ -51,7 +51,7 @@ import router from "./routes/admin.route";
 
 import { sendSmsHandler } from "./controller/send.controller";
 import {createBusiness} from "./controller/business.controller";
-import {saveDefaultVal, getDefaultVal, saveAiDataToUser, saveGlobalValue, updateAIData} from "./controller/defaultVal.controller";
+import {saveDefaultVal, getDefaultVal, saveAiDataToUser, saveGlobalValue, updateAIData, getAllGlobalData} from "./controller/defaultVal.controller";
 
 //Info
 import {
@@ -1380,6 +1380,7 @@ app.get("/getDefaultVal", getDefaultVal);
 
 app.post("/save-ai-data/:userId", saveAiDataToUser);
 app.post("/updateAIData", updateAIData);
+app.get("/getAllGlobalData", getAllGlobalData);
 
 
 
