@@ -56,6 +56,12 @@ const checkAndNotifyPlanExpiry = async () => {
           console.warn(`User not found for plan ${plan._id}`);
           continue;
         }
+
+        // Skip if user has type: "free"
+        if (user.type === "free") {
+          console.log(`Skipping free user ${user.phone} (Plan ${plan._id})`);
+          continue;
+        }
         
         let shouldSendNotification = false;
         let notificationTitle = '';
