@@ -192,3 +192,24 @@ export const updateAIData = async (req: Request, res: Response) : Promise<void> 
      return
   }
 };
+
+
+
+export const getAllGlobalData = async (req: Request, res: Response) : Promise<void> => {
+  try {
+    const globalValueCollection = await getCollection("global_value");
+    const allData = await globalValueCollection.find({}).toArray();
+
+     res.status(200).json({
+      message: "Global data fetched successfully.",
+      count: allData.length,
+      data: allData
+    });
+    return;
+
+  } catch (error) {
+    console.error("Error fetching global data:", error);
+     res.status(500).json({ message: "Internal Server Error", error });
+     return;
+  }
+};
