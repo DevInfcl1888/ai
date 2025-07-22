@@ -1389,6 +1389,15 @@ app.post("/addPrice", addPrice);
 app.get("/getAllBusinesses", getAllBusinesses);
 
 
+import { addVIP, getVIPs, deleteVIP } from './controller/vip.controller';
+
+
+app.post('/vip', addVIP);         // Add a phone to VIP list
+app.get('/vip', getVIPs);         // Get all VIP phones
+app.delete('/vip/:phone', deleteVIP); // Delete a phone from VIP list
+
+export default router;
+
 
 
 
