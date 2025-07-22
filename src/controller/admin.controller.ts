@@ -162,15 +162,13 @@ export const saveUserPlanHandler = async (
     if (existingPlan && existingPlan.plan_detail?.call_limit !== undefined) {
       const previousCallLimit = existingPlan.plan_detail.call_limit;
 
-      if (previousCallLimit < 0) {
-        // Deduct previous negative usage from new call_limit
-        newCallLimit += previousCallLimit; // previousCallLimit is negative, so this is subtraction
-      }
-      // Else: If previous limit is positive or zero, we leave newCallLimit as is (replace)
+      // ✅ Always add the new call_limit to existing one (whether positive or negative)
+      newCallLimit += previousCallLimit;
     }
 
     // Update the plan_detail's call_limit before saving
     plan_detail.call_limit = newCallLimit;
+
 
     const planData = {
       user_id: userObjectId,
