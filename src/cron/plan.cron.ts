@@ -16,7 +16,7 @@ import { ObjectId } from 'mongodb';
 import { getCollection } from '../config/database'; // Adjust path as needed
 import { push } from '../services/sendPushNotification'; // adjust path
 
-const planExpiryNotificationJob = cron.schedule('* * * * *', async () => {
+const planExpiryNotificationJob = cron.schedule('0 8 * * *', async () => {
   console.log('Starting plan expiry notification job at', new Date().toISOString());
   await checkAndNotifyPlanExpiry();
 }, {
