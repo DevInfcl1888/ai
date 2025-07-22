@@ -297,3 +297,21 @@ export const getPrice = async (req: Request, res: Response) : Promise<void> => {
      res.status(500).json({ message: "Internal Server Error", error });
   }
 };
+
+
+
+export const getAllBusinesses = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const businessCollection = await getCollection("business");
+    const businesses = await businessCollection.find({}).toArray();
+
+    res.status(200).json({
+      success: true,
+      data: businesses,
+      count: businesses.length,
+    });
+  } catch (error) {
+    console.error("Error fetching businesses:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
