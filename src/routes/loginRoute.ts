@@ -305,66 +305,6 @@ export const getProfileHandler = async (req: Request, res: Response) => {
 };
 
 
-// export const getProfileHandler = async (req: Request, res: Response) => {
-//   const userId = req.query.id as string;
-
-//   if (!ObjectId.isValid(userId)) {
-//     res.status(400).json({ error: "Invalid user ID format" });
-//     return;
-//   }
-
-//   const usersCollection = await getCollection("users");
-//   const plansCollection = await getCollection("ai_plans");
-
-//   const userObjectId = new ObjectId(userId);
-//   const existingUser = await usersCollection.findOne({ _id: userObjectId });
-
-//   if (!existingUser) {
-//     res.status(400).json({ error: "User not found" });
-//     return;
-//   }
-
-//   let planStatus = {
-//     status: "no active plans",
-//     plan_name: "",
-//     expiry_date: "",
-//         benefits: [],
-
-//   };
-
-//   const userPlans = await plansCollection
-//     .find({ user_id: userObjectId })
-//     .sort({ created_at: -1 })
-//     .limit(1)
-//     .toArray();
-
-//   if (userPlans.length > 0) {
-//     const latestPlan = userPlans[0];
-//     const today = dayjs().startOf("day");
-//     const expiryDate = dayjs(latestPlan.expiry_date);
-
-//     planStatus = {
-//       plan_name: latestPlan.plan_detail?.plan || "",
-//       benefits: latestPlan.plan_detail?.benefits || [],
-
-//       expiry_date: expiryDate.toISOString(),
-//       status: expiryDate.isBefore(today) ? "expired" : "active"
-//     };
-//   }
-
-//    const userData = {
-//     ...existingUser,
-//     call_count: typeof existingUser.call_count === "number" ? existingUser.call_count : 0,
-//     plan_status: planStatus,
-//   };
-
-//   res.status(200).json({
-//     success: true,
-//     message: "User fetched successfully",
-//     data : userData
-//   });
-// };
-
 
 export const updateUserPreferencesHandler = async (
   req: Request,

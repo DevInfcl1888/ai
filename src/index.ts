@@ -50,7 +50,7 @@ import {
 import router from "./routes/admin.route";
 
 import { sendSmsHandler } from "./controller/send.controller";
-import {createBusiness} from "./controller/business.controller";
+import {createBusiness, getBusinessByUserId, updateBusinessById, updateBusinessStatus} from "./controller/business.controller";
 import {saveDefaultVal, getDefaultVal, saveAiDataToUser, saveGlobalValue, updateAIData, getAllGlobalData, addPrice, getPrice, getAllBusinesses} from "./controller/defaultVal.controller";
 
 //Info
@@ -1375,6 +1375,10 @@ app.get("/get-privacy",getPrivacy);
 app.put("/edit-privacy/:id",updatePrivacy);
 app.delete("/delete-privacy/:id",deletePrivacy);
 app.post("/createBusiness",createBusiness);
+app.get("/getAllBusinesses", getAllBusinesses);
+app.get("/getBusinessByUserId/:userId",getBusinessByUserId);
+app.put('/updateBusiness/:id', updateBusinessById); 
+app.post('/updateBusinessStatus', updateBusinessStatus); 
 app.post("/default-val", saveDefaultVal);
 app.get("/getDefaultVal", getDefaultVal);
 
@@ -1386,7 +1390,6 @@ app.post("/saveGlobalValue", saveGlobalValue
 app.get("/getAllGlobalData", getAllGlobalData);
 app.get("/getPrice", getPrice);
 app.post("/addPrice", addPrice);
-app.get("/getAllBusinesses", getAllBusinesses);
 
 
 import { addVIP, getVIPs, deleteVIP } from './controller/vip.controller';
