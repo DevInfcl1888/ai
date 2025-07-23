@@ -185,8 +185,8 @@ export const getBusinessByTitle = async (req: Request, res: Response): Promise<v
   try {
     const { term } = req.query;
 
-    if (!status) {
-      res.status(400).json({ error: 'Title query parameter is required' });
+    if (!term) {
+      res.status(400).json({ error: 'Title is required in query params' });
       return;
     }
 
