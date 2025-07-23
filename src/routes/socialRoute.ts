@@ -69,8 +69,90 @@ import { ObjectId } from "mongodb";
 
 
 
+export const checkUserPhone = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { social_id } = req.body;
+
+    if (!social_id) {
+      res.status(400).json({ success: false, message: "social_id is required" });
+      return;
+    }
+
+    const usersCollection = await getCollection("users");
+
+    const user = await usersCollection.findOne({ socialId: social_id });
+
+    if (!user) {
+      res.status(404).json({ success: false, message: "No user found" });
+      return;
+    }
+
+    const hasPhone = "phone" in user && typeof user.phone === "string" && user.phone.trim() !== "";
+
+    res.status(200).json({ phone: hasPhone });
+  } catch (error) {
+    console.error("Error checking phone:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+
+
+export const addPhoneBySocialId = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { social_id, phone } = req.body;
+
+    if (!social_id || !phone) {
+      res.status(400).json({ success: false, message: "social_id and phone are required" });
+      return;
+    }
+
+    const usersCollection = await getCollection("users");
+
+    // Find user by socialId
+    const user = await usersCollection.findOne({ socialId: social_id });
+
+    if (!user) {
+      res.status(404).json({ success: false, message: "No user found" });
+      return;
+    }
+
+    // Check if user already has the phone field and it's not empty
+    if ("phone" in user && user.phone && user.phone.trim() !== "") {
+      res.status(200).json({ success: false, message: "Phone already exists" });
+      return;
+    }
+
+    // Check if phone exists in any other document
+    const phoneInUse = await usersCollection.findOne({
+      phone: phone,
+      socialId: { $ne: social_id }, // exclude the current user
+    });
+
+    if (phoneInUse) {
+      res.status(409).json({ success: false, message: "Phone number already in use" });
+      return;
+    }
+
+    // Update user with the phone
+    await usersCollection.updateOne(
+      { socialId: social_id },
+      { $set: { phone: phone, updatedAt: new Date() } }
+    );
+
+    res.status(200).json({ success: true, message: "Phone number added successfully" });
+  } catch (error) {
+    console.error("Error adding phone:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+
+
+
+
 export const socialRegisterHandler = async (req: Request, res: Response) => {
-  const { socialId, socialType, user, device_token, phone } = req.body;
+  const { socialId, socialType, user, device_token } = req.body;
 
   if (!socialId || !socialType) {
     res.status(400).json({ error: "Social ID and social type are required" });
@@ -93,7 +175,7 @@ export const socialRegisterHandler = async (req: Request, res: Response) => {
     socialType,
     user,
     device_token,
-    phone,
+    phone: "",
     createdAt: new Date(),
     updatedAt: new Date(),
     notification: "never",
