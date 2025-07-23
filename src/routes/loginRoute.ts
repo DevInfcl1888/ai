@@ -233,6 +233,78 @@ export const editProfileHandler = async (req: Request, res: Response) => {
 import dayjs from "dayjs";
 
 
+// export const getProfileHandler = async (req: Request, res: Response) => {
+//   const userId = req.query.id as string;
+
+//   if (!ObjectId.isValid(userId)) {
+//     res.status(400).json({ error: "Invalid user ID format" });
+//     return;
+//   }
+
+//   const usersCollection = await getCollection("users");
+//   const plansCollection = await getCollection("ai_plans");
+//   const allPlansCollection = await getCollection("plans"); // For fetching plan definition
+
+//   const userObjectId = new ObjectId(userId);
+//   const existingUser = await usersCollection.findOne({ _id: userObjectId });
+
+//   if (!existingUser) {
+//     res.status(400).json({ error: "User not found" });
+//     return;
+//   }
+
+//   let planStatus: any = {
+//     status: "no active plans",
+//     plan_name: "",
+//     expiry_date: "",
+//     benefits: [],
+//     balance : 0
+//   };
+
+//   const userPlans = await plansCollection
+//     .find({ user_id: userObjectId })
+//     .sort({ created_at: -1 })
+//     .limit(1)
+//     .toArray();
+
+//   if (userPlans.length > 0) {
+//     const latestPlan = userPlans[0];
+//     const today = dayjs().startOf("day");
+//     const expiryDate = dayjs(latestPlan.expiry_date);
+
+//     const planName = latestPlan.plan_detail?.plan || "";
+
+//     planStatus = {
+//       plan_name: planName,
+//       benefits: latestPlan.plan_detail?.benefits || [],
+//       expiry_date: expiryDate.toISOString(),
+//       status: expiryDate.isBefore(today) ? "expired" : "active",
+//       balance : latestPlan.plan_detail?.call_limit || 0
+//     };
+
+//     // 🔍 Fetch call_limit from plans collection using plan name
+//     if (planName) {
+//       const matchingPlan = await allPlansCollection.findOne({ plan: planName });
+//       if (matchingPlan && typeof matchingPlan.call_limit === "number") {
+//         planStatus.call_limit = matchingPlan.call_limit;
+//       }
+//     }
+//   }
+
+//   const userData = {
+//     ...existingUser,
+//     call_count: typeof existingUser.call_count === "number" ? existingUser.call_count : 0,
+//     plan_status: planStatus,
+//   };
+
+//   res.status(200).json({
+//     success: true,
+//     message: "User fetched successfully",
+//     data: userData,
+//   });
+// };
+
+
 export const getProfileHandler = async (req: Request, res: Response) => {
   const userId = req.query.id as string;
 
@@ -243,7 +315,8 @@ export const getProfileHandler = async (req: Request, res: Response) => {
 
   const usersCollection = await getCollection("users");
   const plansCollection = await getCollection("ai_plans");
-  const allPlansCollection = await getCollection("plans"); // For fetching plan definition
+  const allPlansCollection = await getCollection("plans");
+  const businessCollection = await getCollection("business"); // 👈 business collection
 
   const userObjectId = new ObjectId(userId);
   const existingUser = await usersCollection.findOne({ _id: userObjectId });
@@ -258,7 +331,7 @@ export const getProfileHandler = async (req: Request, res: Response) => {
     plan_name: "",
     expiry_date: "",
     benefits: [],
-    balance : 0
+    balance: 0
   };
 
   const userPlans = await plansCollection
@@ -271,7 +344,6 @@ export const getProfileHandler = async (req: Request, res: Response) => {
     const latestPlan = userPlans[0];
     const today = dayjs().startOf("day");
     const expiryDate = dayjs(latestPlan.expiry_date);
-
     const planName = latestPlan.plan_detail?.plan || "";
 
     planStatus = {
@@ -279,10 +351,9 @@ export const getProfileHandler = async (req: Request, res: Response) => {
       benefits: latestPlan.plan_detail?.benefits || [],
       expiry_date: expiryDate.toISOString(),
       status: expiryDate.isBefore(today) ? "expired" : "active",
-      balance : latestPlan.plan_detail?.call_limit || 0
+      balance: latestPlan.plan_detail?.call_limit || 0
     };
 
-    // 🔍 Fetch call_limit from plans collection using plan name
     if (planName) {
       const matchingPlan = await allPlansCollection.findOne({ plan: planName });
       if (matchingPlan && typeof matchingPlan.call_limit === "number") {
@@ -291,10 +362,33 @@ export const getProfileHandler = async (req: Request, res: Response) => {
     }
   }
 
+  // ✅ Check for business document
+  // 🔍 Do NOT use userObjectId here because business.userId is a string
+const businessDoc = await businessCollection.findOne({ userId });  // exact match string to string
+
+let businessInfo;
+if (businessDoc && businessDoc.userId === userId) {
+  businessInfo = {
+    form: true,
+    Status: businessDoc.Status || "",
+    Title: businessDoc.Title || "",
+    Response: businessDoc.Response || ""
+  };
+} else {
+  businessInfo = {
+    form: false,
+    Status: "",
+    Title: "",
+    Response: ""
+  };
+}
+
+
   const userData = {
     ...existingUser,
     call_count: typeof existingUser.call_count === "number" ? existingUser.call_count : 0,
     plan_status: planStatus,
+    business: businessInfo // 👈 include in response
   };
 
   res.status(200).json({
@@ -303,7 +397,6 @@ export const getProfileHandler = async (req: Request, res: Response) => {
     data: userData,
   });
 };
-
 
 
 export const updateUserPreferencesHandler = async (
