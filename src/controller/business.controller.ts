@@ -47,6 +47,7 @@ export const createBusiness = async (
       Title: 'new',
       Response: '',
       Status: 'pending',
+      term : 'new',
       created_at: now,
       updated_at: now,
     };
@@ -109,6 +110,7 @@ export const updateBusinessById = async (req: Request, res: Response): Promise<v
       ...updatedFields,
       Title: 'repost',
       Status: 'pending',
+      term : 'repost',
       updated_at: new Date()
     };
 
@@ -143,7 +145,8 @@ export const updateBusinessStatus = async (req: Request, res: Response): Promise
     const allowedValues = ['in-review', 'rejected', 'repost', 'approved', 'pending'];
 
     const updateFields: any = {
-      updated_at: new Date()
+      updated_at: new Date(),
+      Title: Title,
     };
 
     if (Status !== undefined) {
@@ -152,6 +155,7 @@ export const updateBusinessStatus = async (req: Request, res: Response): Promise
         return;
       }
       updateFields.Status = Status;
+      updateFields.term = Status;
     }
 
     if (ResponseField !== undefined) {
@@ -179,24 +183,24 @@ export const updateBusinessStatus = async (req: Request, res: Response): Promise
 
 export const getBusinessByTitle = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { title } = req.query;
+    const { term } = req.query;
 
-    if (!title) {
+    if (!status) {
       res.status(400).json({ error: 'Title query parameter is required' });
       return;
     }
 
-    const allowedTitles = ['new', 'in-review', 'rejected', 'repost', 'approved'];
-    const inputTitle = String(title).toLowerCase();
+    // const allowedTitles = ['new', 'in-review', 'rejected', 'repost', 'approved'];
+    const inputTitle = String(term).toLowerCase();
 
-    if (!allowedTitles.includes(inputTitle)) {
-      res.status(400).json({ error: `Invalid Title. Allowed values are: ${allowedTitles.join(', ')}` });
-      return;
-    }
+    // if (!allowedTitles.includes(inputTitle)) {
+    //   res.status(400).json({ error: `Invalid Title. Allowed values are: ${allowedTitles.join(', ')}` });
+    //   return;
+    // }
 
     const businessCollection = await getCollection('business');
 
-    const results = await businessCollection.find({ Status: inputTitle }).toArray();
+    const results = await businessCollection.find({ term: inputTitle }).toArray();
 
     res.status(200).json({ data: results });
   } catch (error) {
