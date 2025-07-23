@@ -146,14 +146,6 @@ export const updateBusinessStatus = async (req: Request, res: Response): Promise
       updated_at: new Date()
     };
 
-    if (Title !== undefined) {
-      if (!allowedValues.includes(Title)) {
-        res.status(400).json({ error: `Invalid Title value. Allowed values: ${allowedValues.join(', ')}` });
-        return;
-      }
-      updateFields.Title = Title;
-    }
-
     if (Status !== undefined) {
       if (!allowedValues.includes(Status)) {
         res.status(400).json({ error: `Invalid Status value. Allowed values: ${allowedValues.join(', ')}` });
@@ -204,7 +196,7 @@ export const getBusinessByTitle = async (req: Request, res: Response): Promise<v
 
     const businessCollection = await getCollection('business');
 
-    const results = await businessCollection.find({ Title: inputTitle }).toArray();
+    const results = await businessCollection.find({ Status: inputTitle }).toArray();
 
     res.status(200).json({ data: results });
   } catch (error) {
