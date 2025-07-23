@@ -50,7 +50,7 @@ import {
 import router from "./routes/admin.route";
 
 import { sendSmsHandler } from "./controller/send.controller";
-import {createBusiness, getBusinessByUserId, updateBusinessById, updateBusinessStatus} from "./controller/business.controller";
+import {createBusiness, getBusinessByUserId, updateBusinessById, updateBusinessStatus,getBusinessByTitle} from "./controller/business.controller";
 import {saveDefaultVal, getDefaultVal, saveAiDataToUser, saveGlobalValue, updateAIData, getAllGlobalData, addPrice, getPrice, getAllBusinesses} from "./controller/defaultVal.controller";
 
 //Info
@@ -1379,6 +1379,7 @@ app.get("/getAllBusinesses", getAllBusinesses);
 app.get("/getBusinessByUserId/:userId",getBusinessByUserId);
 app.put('/updateBusiness/:id', updateBusinessById); 
 app.post('/updateBusinessStatus', updateBusinessStatus); 
+app.get('/getBusinessByTitle', getBusinessByTitle); 
 app.post("/default-val", saveDefaultVal);
 app.get("/getDefaultVal", getDefaultVal);
 
