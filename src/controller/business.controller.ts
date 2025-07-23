@@ -185,3 +185,30 @@ export const updateBusinessStatus = async (req: Request, res: Response): Promise
   }
 };
 
+export const getBusinessByTitle = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { title } = req.query;
+
+    if (!title) {
+      res.status(400).json({ error: 'Title query parameter is required' });
+      return;
+    }
+
+    const allowedTitles = ['new', 'in-review', 'rejected', 'repost', 'approved'];
+    const inputTitle = String(title).toLowerCase();
+
+    if (!allowedTitles.includes(inputTitle)) {
+      res.status(400).json({ error: `Invalid Title. Allowed values are: ${allowedTitles.join(', ')}` });
+      return;
+    }
+
+    const businessCollection = await getCollection('business');
+
+    const results = await businessCollection.find({ Title: inputTitle }).toArray();
+
+    res.status(200).json({ data: results });
+  } catch (error) {
+    console.error('Error fetching business data:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
