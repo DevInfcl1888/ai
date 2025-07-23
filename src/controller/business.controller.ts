@@ -44,9 +44,9 @@ export const createBusiness = async (
 
     const documentToInsert = {
       ...businessData,
-      Title: 'New Post',
+      Title: 'new',
       Response: '',
-      Status: 'Pending',
+      Status: 'pending',
       created_at: now,
       updated_at: now,
     };
@@ -107,8 +107,8 @@ export const updateBusinessById = async (req: Request, res: Response): Promise<v
     // Only update provided fields + forced updates
     const updatePayload = {
       ...updatedFields,
-      Title: 'Repost',
-      Status: 'Pending',
+      Title: 'repost',
+      Status: 'pending',
       updated_at: new Date()
     };
 
@@ -140,13 +140,31 @@ export const updateBusinessStatus = async (req: Request, res: Response): Promise
       return;
     }
 
+    const allowedValues = ['in-review', 'rejected', 'repost', 'approved', 'pending'];
+
     const updateFields: any = {
       updated_at: new Date()
     };
 
-    if (Title !== undefined) updateFields.Title = Title;
-    if (Status !== undefined) updateFields.Status = Status;
-    if (ResponseField !== undefined) updateFields.Response = ResponseField;
+    if (Title !== undefined) {
+      if (!allowedValues.includes(Title)) {
+        res.status(400).json({ error: `Invalid Title value. Allowed values: ${allowedValues.join(', ')}` });
+        return;
+      }
+      updateFields.Title = Title;
+    }
+
+    if (Status !== undefined) {
+      if (!allowedValues.includes(Status)) {
+        res.status(400).json({ error: `Invalid Status value. Allowed values: ${allowedValues.join(', ')}` });
+        return;
+      }
+      updateFields.Status = Status;
+    }
+
+    if (ResponseField !== undefined) {
+      updateFields.Response = ResponseField;
+    }
 
     const businessCollection = await getCollection('business');
 
@@ -166,3 +184,4 @@ export const updateBusinessStatus = async (req: Request, res: Response): Promise
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
