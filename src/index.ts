@@ -188,53 +188,6 @@ const updateLiveCallDuration = async (callId: string, toNumber: string, duration
   }
 };
 
-
-// Function to deduct seconds from user's plan
-// const deductSecondsFromPlan = async (toNumber: string, secondsToDeduct: number) => {
-//   try {
-//     const usersCollection = await getCollection("users");
-//     const aiPlansCollection = await getCollection("ai_plans");
-    
-//     // Find user by ai_number
-//     const user = await usersCollection.findOne({ ai_number: toNumber });
-    
-//     if (!user) {
-//       console.warn(`⚠️ User with ai_number ${toNumber} not found. Skipping plan deduction.`);
-//       return;
-//     }
-    
-//     // Find user's active plan
-//     const userPlan = await aiPlansCollection.findOne({ user_id: user._id });
-    
-//     if (!userPlan) {
-//       console.warn(`⚠️ No active plan found for user ${user._id}. Skipping plan deduction.`);
-//       return;
-//     }
-    
-//     const currentCallLimit = userPlan.plan_detail.call_limit;
-//     const newCallLimit = currentCallLimit - secondsToDeduct;
-    
-//     // Update the plan with new call_limit
-//     await aiPlansCollection.findOneAndUpdate(
-//       { user_id: user._id },
-//       { 
-//         $set: {
-//           "plan_detail.call_limit": newCallLimit
-//         }
-//       }
-//     );
-    
-//     console.log(`💰 Deducted ${secondsToDeduct} seconds from user ${toNumber}. New limit: ${newCallLimit} seconds`);
-    
-//     // Check for low balance and send notifications
-//     await checkAndSendLowBalanceNotification(user, newCallLimit);
-    
-//   } catch (error) {
-//     console.error("💥 Error deducting seconds from plan:", error);
-//   }
-// };
-
-// Function to deduct seconds from user's plan
 const deductSecondsFromPlan = async (toNumber: string, secondsToDeduct: number) => {
   try {
     const usersCollection = await getCollection("users");
@@ -293,49 +246,15 @@ const deductSecondsFromPlan = async (toNumber: string, secondsToDeduct: number) 
     console.error("💥 Error deducting seconds from plan:", error);
   }
 };
-// Function to check and send low balance notifications
-// const checkAndSendLowBalanceNotification = async (user: any, currentCallLimit: number) => {
-//   try {
-//     // Define threshold values (in seconds)
-//     const thresholds = [10, 5, 0, -30, -60, -90, -1800]; // Added some negative thresholds for ongoing notifications
-    
-//     // Check if current limit hits any threshold
-//     if (thresholds.includes(currentCallLimit) || currentCallLimit < 0) {
-//       let message = '';
-      
-//       if (currentCallLimit > 0) {
-//         const minutes = Math.floor(currentCallLimit / 60);
-//         const seconds = currentCallLimit % 60;
-//         message = `Low Balance Alert! You have ${minutes}:${seconds.toString().padStart(2, '0')} minutes remaining. Please Recharge.`;
-//       } else {
-//         const overdraftMinutes = Math.abs(Math.floor(currentCallLimit / 60));
-//         const overdraftSeconds = Math.abs(currentCallLimit % 60);
-//         message = `Balance Exhausted! You've used ${overdraftMinutes}:${overdraftSeconds.toString().padStart(2, '0')} minutes over your limit. Please Recharge immediately.`;
-//       }
-      
-//       // Send push notification if user has device token
-//       if (user.device_token) {
-//         console.log("📱 Sending low balance notification to device token:", user.device_token);
-//         await push(user.device_token, 'Balance Alert', message);
-//       }
-      
-//       // Send SMS if SMS is enabled for the user
-//       if (user.sms === true && user.contact) {
-//         console.log("📩 Sending low balance SMS to", user.contact);
-//         await sendSms(user.contact, message);
-//       }
-      
-//       console.log(`🔔 Low balance notification sent for user ${user.ai_number}. Current limit: ${currentCallLimit} seconds`);
-//     }
-    
-//   } catch (error) {
-//     console.error("💥 Error sending low balance notification:", error);
-//   }
-// };
 
-// Function to check and send low balance notifications
 const checkAndSendLowBalanceNotification = async (user: any, currentCallLimit: number) => {
   try {
+    // Skip balance notifications for free users
+    if (user.type === "free") {
+      console.log(`🆓 Skipping balance notification for free user ${user.ai_number}`);
+      return;
+    }
+    
     // Define threshold values (in seconds)
     const thresholds = [10, 5, 0, -30, -60, -90, -1800]; // Added some negative thresholds for ongoing notifications
     
@@ -374,6 +293,104 @@ const checkAndSendLowBalanceNotification = async (user: any, currentCallLimit: n
     console.error("💥 Error sending low balance notification:", error);
   }
 };
+// const deductSecondsFromPlan = async (toNumber: string, secondsToDeduct: number) => {
+//   try {
+//     const usersCollection = await getCollection("users");
+//     const aiPlansCollection = await getCollection("ai_plans");
+    
+//     // Find user by ai_number
+//     const user = await usersCollection.findOne({ ai_number: toNumber });
+    
+//     if (!user) {
+//       console.warn(`⚠️ User with ai_number ${toNumber} not found. Skipping plan deduction.`);
+//       return;
+//     }
+    
+//     // Find user's active plan
+//     const userPlan = await aiPlansCollection.findOne({ user_id: user._id });
+    
+//     if (!userPlan) {
+//       console.warn(`⚠️ No active plan found for user ${user._id}. Skipping plan deduction.`);
+//       return;
+//     }
+    
+//     const currentCallLimit = userPlan.plan_detail.call_limit;
+    
+//     // Check if user has already reached the minimum limit of -1800 seconds
+//     if (currentCallLimit <= -5400) {
+//       console.warn(`⚠️ User ${toNumber} has reached maximum overdraft limit (-1800 seconds). No further deductions will be made.`);
+//       return;
+//     }
+    
+//     const newCallLimit = currentCallLimit - secondsToDeduct;
+    
+//     // Ensure the new limit doesn't go below -1800
+//     const finalCallLimit = Math.max(newCallLimit, -5400);
+    
+//     // Update the plan with new call_limit
+//     await aiPlansCollection.findOneAndUpdate(
+//       { user_id: user._id },
+//       { 
+//         $set: {
+//           "plan_detail.call_limit": finalCallLimit
+//         }
+//       }
+//     );
+    
+//     console.log(`💰 Deducted ${secondsToDeduct} seconds from user ${toNumber}. New limit: ${finalCallLimit} seconds`);
+    
+//     // If we hit the -1800 limit, log a special message
+//     if (finalCallLimit === -5400 && newCallLimit < -5400) {
+//       console.log(`🚫 User ${toNumber} has reached maximum overdraft limit of -1800 seconds. No further deductions will be made.`);
+//     }
+    
+//     // Check for low balance and send notifications
+//     await checkAndSendLowBalanceNotification(user, finalCallLimit);
+    
+//   } catch (error) {
+//     console.error("💥 Error deducting seconds from plan:", error);
+//   }
+// };
+// const checkAndSendLowBalanceNotification = async (user: any, currentCallLimit: number) => {
+//   try {
+//     // Define threshold values (in seconds)
+//     const thresholds = [10, 5, 0, -30, -60, -90, -1800]; // Added some negative thresholds for ongoing notifications
+    
+//     // Check if current limit hits any threshold
+//     if (thresholds.includes(currentCallLimit) || currentCallLimit < 0) {
+//       let message = '';
+      
+//       if (currentCallLimit > 0) {
+//         const minutes = Math.floor(currentCallLimit / 60);
+//         const seconds = currentCallLimit % 60;
+//         message = `Low Balance Alert! You have ${minutes}:${seconds.toString().padStart(2, '0')} minutes remaining. Please Recharge.`;
+//       } else {
+//         // For negative values, get absolute value for display
+//         const absoluteLimit = Math.abs(currentCallLimit);
+//         const overdraftMinutes = Math.floor(absoluteLimit / 60);
+//         const overdraftSeconds = absoluteLimit % 60;
+//         message = `Balance Exhausted! You've used ${overdraftMinutes}:${overdraftSeconds.toString().padStart(2, '0')} minutes over your limit. Please Recharge immediately.`;
+//       }
+      
+//       // Send push notification if user has device token
+//       if (user.device_token) {
+//         console.log("📱 Sending low balance notification to device token:", user.device_token);
+//         await push(user.device_token, 'Balance Alert', message);
+//       }
+      
+//       // Send SMS if SMS is enabled for the user
+//       if (user.sms === true && user.contact) {
+//         console.log("📩 Sending low balance SMS to", user.contact);
+//         await sendSms(user.contact, message);
+//       }
+      
+//       console.log(`🔔 Low balance notification sent for user ${user.ai_number}. Current limit: ${currentCallLimit} seconds`);
+//     }
+    
+//   } catch (error) {
+//     console.error("💥 Error sending low balance notification:", error);
+//   }
+// };
 
 
 app.post("/retell-webhook", async (req, res) => {
