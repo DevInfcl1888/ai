@@ -207,7 +207,7 @@ export async function verifyOTPhandler(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { phoneNumber, otp, type, device_token } = req.body;
+    const { phoneNumber, otp, type, device_token, TimeZone } = req.body;
     console.log("device", device_token);
 
     if (!phoneNumber || !otp) {
@@ -232,7 +232,7 @@ export async function verifyOTPhandler(
       }
 
       if (type === "register") {
-        const result = await registerUser(phoneNumber, device_token);
+        const result = await registerUser(phoneNumber, device_token, TimeZone);
         res.status(200).json({
           success: true,
           message: "User registered successfully",
@@ -254,60 +254,9 @@ export async function verifyOTPhandler(
 }
 
 
-// async function registerUser(phoneNumber: string , device_token: string ) {
-//   const newUser: User = {
-//     phone: phoneNumber,
-//     createdAt: new Date(),
-//     updatedAt: new Date(),
-//     phone_num: "",
-//     notification: "never",
-//     sms: false,
-//     call_count: 0, // <-- added this line
-//     device_token: device_token || "",
-
-//   };
-
-//   const usersCollection = await getCollection("users");
-//   const result = await usersCollection.insertOne(newUser);
-//     const aiPlansCollection = await getCollection("ai_plans");
-
-//     const currentDate = new Date();
-//   const expiryDate = new Date(currentDate);
-//   expiryDate.setDate(currentDate.getDate() + 30); // 30 days from now
 
 
-
-//   // / Step 2: Create AI plan entry for the new user
-//   const aiPlanEntry = {
-//     user_id: result.insertedId,
-//     plan_detail: {
-//       _id: "", // You might want to generate or use a specific ID
-//       plan: "Trial",
-//       benefits: [], // Empty array as requested
-//       price: 0,
-//       updatedAt: currentDate.toISOString(),
-//       call_limit: 1800
-//     },
-//     expiry_date: expiryDate,
-//     buy_date: currentDate,
-//     validity: "1 month",
-//     token: "",
-//     transaction_id: "", // You might want to generate a transaction ID
-//     created_at: currentDate
-//   };
-
-//   await aiPlansCollection.insertOne(aiPlanEntry);
-
-//   return {
-//     id: result.insertedId,
-//     device_token : device_token,
-//     phone: phoneNumber,
-//     createdAt: newUser.createdAt,
-//     updatedAt: newUser.updatedAt,
-//   };
-// }
-
-async function registerUser(phoneNumber: string, device_token: string) {
+async function registerUser(phoneNumber: string, device_token: string, TimeZone: string) {
   const usersCollection = await getCollection("users");
   const aiPlansCollection = await getCollection("ai_plans");
   const vipCollection = await getCollection("vip");
@@ -328,6 +277,7 @@ async function registerUser(phoneNumber: string, device_token: string) {
     sms: false,
     call_count: 0,
     device_token: device_token || "",
+    timeZone: TimeZone||"",
     ...(isVIP && { type: "free" }), // <-- save "type": "free" if VIP
   };
 

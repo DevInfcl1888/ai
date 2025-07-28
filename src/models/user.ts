@@ -22,6 +22,7 @@ export interface SocialUser {
     notification:string;
     phone_num: string;
     sms: boolean,
+    timeZone: string;
     call_count: number; // <-- include this in the type definition
 
 }
