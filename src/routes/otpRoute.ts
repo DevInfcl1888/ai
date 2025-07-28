@@ -207,7 +207,7 @@ export async function verifyOTPhandler(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { phoneNumber, otp, type, device_token, TimeZone } = req.body;
+    const { phoneNumber, otp, type, device_token, timeZone } = req.body;
     console.log("device", device_token);
 
     if (!phoneNumber || !otp) {
@@ -232,7 +232,7 @@ export async function verifyOTPhandler(
       }
 
       if (type === "register") {
-        const result = await registerUser(phoneNumber, device_token, TimeZone);
+        const result = await registerUser(phoneNumber, device_token, timeZone);
         res.status(200).json({
           success: true,
           message: "User registered successfully",
