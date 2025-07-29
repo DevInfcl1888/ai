@@ -20,7 +20,36 @@ export const saveDefaultVal = async (req: Request, res: Response) => {
   }
 };
 
-export const getDefaultVal = async (req: Request, res: Response) : Promise<void> => {
+// export const getDefaultVal = async (req: Request, res: Response) : Promise<void> => {
+//   try {
+//     const collection = await getCollection("default_val");
+
+//     // Fetch the first document (only one should exist)
+//     const document = await collection.findOne({});
+
+//     if (!document) {
+//        res.status(404).json({ message: "No configuration found" });
+//     }
+
+//     res.status(200).json(document);
+//   } catch (error: any) {
+//     res.status(500).json({ error: error.message });
+//   }
+// };
+
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+import Retell from 'retell-sdk';
+const client = new Retell({
+  apiKey: process.env.RETELL_API_KEY || '',
+});
+// const client = new Retell({
+//   apiKey: 'YOUR_RETELL_API_KEY',
+// });
+
+export const getDefaultVal = async (req: Request, res: Response): Promise<void> => {
   try {
     const collection = await getCollection("default_val");
 
@@ -28,11 +57,59 @@ export const getDefaultVal = async (req: Request, res: Response) : Promise<void>
     const document = await collection.findOne({});
 
     if (!document) {
-       res.status(404).json({ message: "No configuration found" });
+      res.status(404).json({ message: "No configuration found" });
+      return;
     }
 
-    res.status(200).json(document);
+    // Fetch knowledge base data from Retell API
+    try {
+      const knowledgeBaseResponses: any = await client.knowledgeBase.list();
+      // console.log('Knowledge Base Responses:', knowledgeBaseResponses);
+
+      // Extract knowledge base IDs and add them to the document
+      // Check the actual structure of the response and extract IDs accordingly
+      let knowledgeBaseIds: string[] = [];
+      
+      if (Array.isArray(knowledgeBaseResponses)) {
+        // If response is directly an array
+        knowledgeBaseIds = knowledgeBaseResponses.map((kb: any) => kb.knowledge_base_id || kb.id).filter(Boolean);
+      } else if (knowledgeBaseResponses.data && Array.isArray(knowledgeBaseResponses.data)) {
+        // If response has a 'data' property with array
+        knowledgeBaseIds = knowledgeBaseResponses.data.map((kb: any) => kb.knowledge_base_id || kb.id).filter(Boolean);
+      } else if (knowledgeBaseResponses.knowledge_bases && Array.isArray(knowledgeBaseResponses.knowledge_bases)) {
+        // If response has a 'knowledge_bases' property with array
+        knowledgeBaseIds = knowledgeBaseResponses.knowledge_bases.map((kb: any) => kb.knowledge_base_id || kb.id).filter(Boolean);
+      } else {
+        // Try to extract from any array property in the response
+        const responseObj = knowledgeBaseResponses as any;
+        for (const key in responseObj) {
+          if (Array.isArray(responseObj[key])) {
+            knowledgeBaseIds = responseObj[key].map((kb: any) => kb.knowledge_base_id || kb.id).filter(Boolean);
+            break;
+          }
+        }
+      }
+      
+      // Update the document with knowledge base IDs
+      const updatedDocument = {
+        ...document,
+        knowledge_base_ids: knowledgeBaseResponses
+      };
+
+      res.status(200).json(updatedDocument);
+    } catch (retellError: any) {
+      console.error('Error fetching knowledge base data:', retellError);
+      
+      // If Retell API fails, still return the original document
+      res.status(200).json({
+        ...document,
+        knowledge_base_ids: [], // Keep empty array if API fails
+        retell_error: `Failed to fetch knowledge base: ${retellError.message}`
+      });
+    }
+
   } catch (error: any) {
+    console.error('Database error:', error);
     res.status(500).json({ error: error.message });
   }
 };
