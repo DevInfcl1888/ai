@@ -260,13 +260,19 @@ async function registerUser(phoneNumber: string, device_token: string, TimeZone:
   const usersCollection = await getCollection("users");
   const aiPlansCollection = await getCollection("ai_plans");
   const vipCollection = await getCollection("vip");
+  const blockCollection = await getCollection("block");
 
   const currentDate = new Date();
   const expiryDate = new Date(currentDate);
   expiryDate.setDate(currentDate.getDate() + 30); // 30 days from now
 
+  // // Check if user is VIP
+  // const isVIP = await vipCollection.findOne({ phone: phoneNumber });
   // Check if user is VIP
   const isVIP = await vipCollection.findOne({ phone: phoneNumber });
+
+  // Check if user is Blocked
+  const isBlocked = await blockCollection.findOne({ phone: phoneNumber });
 
   const newUser: any = {
     phone: phoneNumber,
@@ -279,6 +285,8 @@ async function registerUser(phoneNumber: string, device_token: string, TimeZone:
     device_token: device_token || "",
     timeZone: TimeZone||"",
     ...(isVIP && { type: "free" }), // <-- save "type": "free" if VIP
+    ...(isBlocked && { is_blocked: true }) // add "is_blocked": true if blocked
+
   };
 
   const result = await usersCollection.insertOne(newUser);

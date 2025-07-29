@@ -49,6 +49,70 @@ const client = new Retell({
 //   apiKey: 'YOUR_RETELL_API_KEY',
 // });
 
+// export const getDefaultVal = async (req: Request, res: Response): Promise<void> => {
+//   try {
+//     const collection = await getCollection("default_val");
+
+//     // Fetch the first document (only one should exist)
+//     const document = await collection.findOne({});
+
+//     if (!document) {
+//       res.status(404).json({ message: "No configuration found" });
+//       return;
+//     }
+
+//     // Fetch knowledge base data from Retell API
+//     try {
+//       const knowledgeBaseResponses: any = await client.knowledgeBase.list();
+//       // console.log('Knowledge Base Responses:', knowledgeBaseResponses);
+
+//       // Extract knowledge base IDs and add them to the document
+//       // Check the actual structure of the response and extract IDs accordingly
+//       let knowledgeBaseIds: string[] = [];
+      
+//       if (Array.isArray(knowledgeBaseResponses)) {
+//         // If response is directly an array
+//         knowledgeBaseIds = knowledgeBaseResponses.map((kb: any) => kb.knowledge_base_id || kb.id).filter(Boolean);
+//       } else if (knowledgeBaseResponses.data && Array.isArray(knowledgeBaseResponses.data)) {
+//         // If response has a 'data' property with array
+//         knowledgeBaseIds = knowledgeBaseResponses.data.map((kb: any) => kb.knowledge_base_id || kb.id).filter(Boolean);
+//       } else if (knowledgeBaseResponses.knowledge_bases && Array.isArray(knowledgeBaseResponses.knowledge_bases)) {
+//         // If response has a 'knowledge_bases' property with array
+//         knowledgeBaseIds = knowledgeBaseResponses.knowledge_bases.map((kb: any) => kb.knowledge_base_id || kb.id).filter(Boolean);
+//       } else {
+//         // Try to extract from any array property in the response
+//         const responseObj = knowledgeBaseResponses as any;
+//         for (const key in responseObj) {
+//           if (Array.isArray(responseObj[key])) {
+//             knowledgeBaseIds = responseObj[key].map((kb: any) => kb.knowledge_base_id || kb.id).filter(Boolean);
+//             break;
+//           }
+//         }
+//       }
+      
+//       // Update the document with knowledge base IDs
+//       const updatedDocument = {
+//         ...document,
+//         knowledge_base_ids: knowledgeBaseResponses
+//       };
+
+//       res.status(200).json(updatedDocument);
+//     } catch (retellError: any) {
+//       console.error('Error fetching knowledge base data:', retellError);
+      
+//       // If Retell API fails, still return the original document
+//       res.status(200).json({
+//         ...document,
+//         knowledge_base_ids: [], // Keep empty array if API fails
+//         retell_error: `Failed to fetch knowledge base: ${retellError.message}`
+//       });
+//     }
+
+//   } catch (error: any) {
+//     console.error('Database error:', error);
+//     res.status(500).json({ error: error.message });
+//   }
+// };
 export const getDefaultVal = async (req: Request, res: Response): Promise<void> => {
   try {
     const collection = await getCollection("default_val");
@@ -64,46 +128,46 @@ export const getDefaultVal = async (req: Request, res: Response): Promise<void> 
     // Fetch knowledge base data from Retell API
     try {
       const knowledgeBaseResponses: any = await client.knowledgeBase.list();
-      // console.log('Knowledge Base Responses:', knowledgeBaseResponses);
 
-      // Extract knowledge base IDs and add them to the document
-      // Check the actual structure of the response and extract IDs accordingly
-      let knowledgeBaseIds: string[] = [];
-      
+      // Extract knowledge base IDs from Retell response
+      let knowledgeBaseList: any[] = [];
+
       if (Array.isArray(knowledgeBaseResponses)) {
-        // If response is directly an array
-        knowledgeBaseIds = knowledgeBaseResponses.map((kb: any) => kb.knowledge_base_id || kb.id).filter(Boolean);
-      } else if (knowledgeBaseResponses.data && Array.isArray(knowledgeBaseResponses.data)) {
-        // If response has a 'data' property with array
-        knowledgeBaseIds = knowledgeBaseResponses.data.map((kb: any) => kb.knowledge_base_id || kb.id).filter(Boolean);
-      } else if (knowledgeBaseResponses.knowledge_bases && Array.isArray(knowledgeBaseResponses.knowledge_bases)) {
-        // If response has a 'knowledge_bases' property with array
-        knowledgeBaseIds = knowledgeBaseResponses.knowledge_bases.map((kb: any) => kb.knowledge_base_id || kb.id).filter(Boolean);
+        knowledgeBaseList = knowledgeBaseResponses;
+      } else if (knowledgeBaseResponses?.data && Array.isArray(knowledgeBaseResponses.data)) {
+        knowledgeBaseList = knowledgeBaseResponses.data;
+      } else if (knowledgeBaseResponses?.knowledge_bases && Array.isArray(knowledgeBaseResponses.knowledge_bases)) {
+        knowledgeBaseList = knowledgeBaseResponses.knowledge_bases;
       } else {
-        // Try to extract from any array property in the response
-        const responseObj = knowledgeBaseResponses as any;
-        for (const key in responseObj) {
-          if (Array.isArray(responseObj[key])) {
-            knowledgeBaseIds = responseObj[key].map((kb: any) => kb.knowledge_base_id || kb.id).filter(Boolean);
+        // Try to extract from any array property
+        for (const key in knowledgeBaseResponses) {
+          if (Array.isArray(knowledgeBaseResponses[key])) {
+            knowledgeBaseList = knowledgeBaseResponses[key];
             break;
           }
         }
       }
-      
-      // Update the document with knowledge base IDs
+
+      const availableKBIds = knowledgeBaseList.map((kb: any) => kb.knowledge_base_id || kb.id).filter(Boolean);
+
+      // Filter only matching IDs from the document
+      const filteredKnowledgeBaseIds = (document.knowledge_base_ids || []).filter((id: string) =>
+        availableKBIds.includes(id)
+      );
+
       const updatedDocument = {
         ...document,
-        knowledge_base_ids: knowledgeBaseResponses
+        knowledge_base_ids: filteredKnowledgeBaseIds
       };
 
       res.status(200).json(updatedDocument);
     } catch (retellError: any) {
       console.error('Error fetching knowledge base data:', retellError);
-      
-      // If Retell API fails, still return the original document
+
+      // Still return the original document but with empty knowledge_base_ids
       res.status(200).json({
         ...document,
-        knowledge_base_ids: [], // Keep empty array if API fails
+        knowledge_base_ids: [], 
         retell_error: `Failed to fetch knowledge base: ${retellError.message}`
       });
     }
