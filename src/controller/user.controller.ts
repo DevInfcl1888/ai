@@ -56,20 +56,21 @@ export const deleteBlock = async (req: Request, res: Response): Promise<void> =>
     const blockCollection = await getCollection("block");
     const usersCollection = await getCollection("users");
 
+    // Remove `is_blocked` field from user if present
+    const user = await usersCollection.findOne({ phone });
+    if (user && user.is_blocked) {
+      await usersCollection.updateOne(
+        { _id: user._id },
+        { $unset: { is_blocked: "" } }
+      );
+    }
+
+    // Then delete from block collection
     const result = await blockCollection.deleteOne({ phone });
 
     if (result.deletedCount === 0) {
       res.status(404).json({ message: "Phone not found in Block list" });
       return;
-    }
-
-    // Remove `type` field from user if present
-    const user = await usersCollection.findOne({ phone });
-    if (user && user.type) {
-      await usersCollection.updateOne(
-        { _id: user._id },
-        { $unset: { is_blocked: false } }
-      );
     }
 
     res.json({ message: "Phone removed from Block list" });
