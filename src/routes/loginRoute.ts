@@ -79,6 +79,13 @@ export const loginHandler = async (req: Request, res: Response): Promise<void> =
   }
 
   const usersCollection = await getCollection("users");
+  const blockCollection = await getCollection("block");
+    const isBlocked = await blockCollection.findOne({ phone: phoneNumber });
+
+    if (isBlocked) {
+      res.status(403).json({ error: "You are blocked. Please contact the admin." });
+      return;
+    }
   const existingUser = await usersCollection.findOne({
     $or: [{ phone: phoneNumber }],
   });

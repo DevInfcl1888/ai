@@ -217,6 +217,14 @@ export async function verifyOTPhandler(
 
     const isVerified = verifyOtp(phoneNumber, otp);
     const usersCollection = await getCollection("users");
+    const blockCollection = await getCollection("block");
+    const isBlocked = await blockCollection.findOne({ phone: phoneNumber });
+
+    if (isBlocked) {
+      res.status(403).json({ error: "You are blocked. Please contact the admin." });
+      return;
+    }
+
     const existingUser = await usersCollection.findOne({ phone: phoneNumber });
 
     if (isVerified) {
@@ -273,6 +281,7 @@ async function registerUser(phoneNumber: string, device_token: string, TimeZone:
 
   // Check if user is Blocked
   const isBlocked = await blockCollection.findOne({ phone: phoneNumber });
+  
 
   const newUser: any = {
     phone: phoneNumber,
