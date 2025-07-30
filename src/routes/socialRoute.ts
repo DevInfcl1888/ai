@@ -152,7 +152,7 @@ export const addPhoneBySocialId = async (req: Request, res: Response): Promise<v
 
 
 export const socialRegisterHandler = async (req: Request, res: Response) => {
-  const { socialId, socialType, user, device_token, timeZone, phone } = req.body;
+  const { socialId, socialType, user, device_token, timeZone } = req.body;
 
   if (!socialId || !socialType) {
     res.status(400).json({ error: "Social ID and social type are required" });
@@ -160,14 +160,7 @@ export const socialRegisterHandler = async (req: Request, res: Response) => {
   }
 
   const usersCollection = await getCollection("users");
-  const blockCollection = await getCollection("block");
 
-  const isBlocked = await blockCollection.findOne({ phone: phone });
-
-    if (isBlocked) {
-      res.status(403).json({ error: "You are blocked. Please contact the admin." });
-      return;
-    }
   
   // const deletedCollection = await getCollection("deletedAccounts");
 
@@ -184,7 +177,7 @@ export const socialRegisterHandler = async (req: Request, res: Response) => {
     socialType,
     user,
     device_token,
-    phone: phone || "",
+    phone: "",
     createdAt: new Date(),
     updatedAt: new Date(),
     notification: "never",
