@@ -160,8 +160,14 @@ export const socialRegisterHandler = async (req: Request, res: Response) => {
   }
 
   const usersCollection = await getCollection("users");
+    const blockCollection = await getCollection("block");
 
-  
+  const isBlocked = await blockCollection.findOne({ email: user.email });
+
+    if (isBlocked) {
+      res.status(403).json({ error: "You are blocked. Please contact the admin." });
+      return;
+    }
   // const deletedCollection = await getCollection("deletedAccounts");
 
   // Step 1: Check in users collection

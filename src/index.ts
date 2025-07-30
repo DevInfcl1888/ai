@@ -929,10 +929,12 @@ import { blockUser, getBlocks, deleteBlock } from './controller/user.controller'
 app.post('/vip', addVIP);         // Add a phone to VIP list
 app.get('/vip', getVIPs);         // Get all VIP phones
 app.delete('/vip/:phone', deleteVIP); // Delete a phone from VIP list
+app.delete('/vip/:phone', deleteVIP); // Delete a phone from VIP list
 
 app.post('/block', blockUser);         // Add a phone to VIP list
 app.get('/block', getBlocks);         // Get all VIP phones
-app.delete('/block/:phone', deleteBlock); // Delete a phone from VIP list
+app.delete('/block/phone/:phone', deleteBlock);
+app.delete('/block/email/:email', deleteBlock);
 
 export default router;
 
