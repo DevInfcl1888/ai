@@ -240,6 +240,7 @@ export const socialLoginHandler = async (req: Request, res: Response) => {
   }
 
   const usersCollection = await getCollection("users");
+  
   const isUserExists = await usersCollection.findOne({
     $or: [{ socialId, socialType }],
   });
@@ -250,7 +251,7 @@ export const socialLoginHandler = async (req: Request, res: Response) => {
   }
 
     // Check if the user is blocked
-  if (isUserExists.isBlocked === true) {
+if (isUserExists.is_blocked === true) {
     res.status(403).json({ error: "You are blocked. Please contact the admin." });
     return;
   }
