@@ -408,7 +408,7 @@ export async function analyzeCallTranscript(transcript: string): Promise<CallAna
 Analyze the call transcript and provide:
 
 1. A brief summary (2-4 sentences).
-2. Overall sentiment of the call as one word: positive, negative, or neutral.
+2. Overall sentiment of the call as one word like user agree then: positive, user disagree then: negative, user neither agree nor disagree then: neutral.
 Only return the response in this JSON format: 
 { "summary": "<summary>", "sentiment": "<sentiment>" }`;
 
@@ -416,7 +416,7 @@ Only return the response in this JSON format:
     const response = await axios.post(
       OPENAI_API_URL,
       {
-        model: 'gpt-4o', // or 'gpt-3.5-turbo' if preferred
+        model: 'gpt-4', // or 'gpt-3.5-turbo' if preferred
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: transcript }
