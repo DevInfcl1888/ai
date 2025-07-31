@@ -416,7 +416,7 @@ Only return the response in this JSON format:
     const response = await axios.post(
       OPENAI_API_URL,
       {
-        model: 'gpt-4', // or 'gpt-3.5-turbo' if preferred
+        model: 'gpt-4o', // or 'gpt-3.5-turbo' if preferred
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: transcript }
