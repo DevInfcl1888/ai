@@ -399,10 +399,12 @@ app.post("/retell-webhook", async (req, res) => {
 
   try {
     const webhookData = req.body;
-    console.log("📄 Webhook Data:", webhookData);
+    // console.log("📄 Webhook Data:", webhookData);
+    const transcript = webhookData.transcript;
+    console.log("📝 Transcript:", transcript);
     const event = webhookData.event;
     const call = webhookData.call;
-    console.log("📄 Call Data:", call);
+    // console.log("📄 Call Data:", call);
     const callId = call?.call_id;
     const toNumber = call?.to_number;
 
