@@ -399,8 +399,10 @@ app.post("/retell-webhook", async (req, res) => {
 
   try {
     const webhookData = req.body;
+    console.log("📄 Webhook Data:", webhookData);
     const event = webhookData.event;
     const call = webhookData.call;
+    console.log("📄 Call Data:", call);
     const callId = call?.call_id;
     const toNumber = call?.to_number;
 
@@ -704,6 +706,138 @@ const updateCallMinutes = async (toNumber: string, durationSeconds: number, call
 };
 
 
+// const sendNotify = async ({
+//   callSummary,
+//   userSentiment,
+//   toNumber,
+//   callDurationSeconds = 0,
+//   callId,
+// }: {
+//   callSummary: string;
+//   userSentiment: string;
+//   toNumber: string;
+//   callDurationSeconds?: number;
+//   callId?: string;
+// }) => {
+//   console.log("🚀 Sending notification:");
+//   console.log("Sentiment:", userSentiment);
+//   console.log("To:", toNumber);
+//   console.log("Duration:", callDurationSeconds, "seconds");
+
+//   // Map sentiment to message
+//   let sentimentMessage = '';
+//   const sentiment = userSentiment.toLowerCase();
+//   switch (sentiment) {
+//     case 'positive':
+//       sentimentMessage = 'Customer is interested';
+//       break;
+//     case 'neutral':
+//       sentimentMessage = 'Customer is Neutral';
+//       break;
+//     case 'negative':
+//       sentimentMessage = 'Customer is not interested';
+//       break;
+//     default:
+//       sentimentMessage = 'Customer sentiment is unknown';
+//   }
+
+//   const callDurationMinutes = Math.round(callDurationSeconds / 60);
+//   const finalMessage = `${sentimentMessage}`;
+//   const finalMess = `${sentimentMessage} \nCall Summary: ${callSummary}\nCall Duration: ${callDurationSeconds} seconds (${callDurationMinutes} minutes)`;
+
+//   try {
+//     const usersCollection = await getCollection("users");
+//     const callsCollection = await getCollection("calls");
+
+//     // Update user with call info and duration
+//     const user = await usersCollection.findOneAndUpdate(
+//       { ai_number: toNumber },
+//       { 
+//         $inc: { 
+//           call_count: 1,
+//           total_call_seconds: callDurationSeconds,
+//           total_call_minutes: callDurationMinutes 
+//         },
+//         $set: {
+//           last_call_duration_seconds: callDurationSeconds,
+//           last_call_duration_minutes: callDurationMinutes,
+//           last_call_timestamp: new Date(),
+//           last_call_sentiment: sentiment,
+//           last_call_summary: callSummary
+//         }
+//       },
+//       { returnDocument: 'after' }
+//     );
+
+//     if (!user) {
+//       console.log("No user found for number:", toNumber);
+//       return;
+//     }
+
+//     // Store detailed call record
+//     await callsCollection.insertOne({
+//       call_id: callId,
+//       user_id: user._id,
+//       to_number: toNumber,
+//       duration_seconds: callDurationSeconds,
+//       duration_minutes: callDurationMinutes,
+//       sentiment: sentiment,
+//       summary: callSummary,
+//       timestamp: new Date(),
+//       created_at: new Date()
+//     });
+
+//     const {
+//       sms,
+//       sms_type,
+//       notification,
+//       device_token,
+//       contact,
+//     } = user;
+
+//     const sentimentAllowList = ['positive', 'neutral'];
+
+//     // --- SMS check ---
+//     const smsType = sms_type?.toLowerCase();
+//     const canSendSMS =
+//       sms === true &&
+//       (
+//         smsType === 'always' ||
+//         (smsType === 'interested' && sentimentAllowList.includes(sentiment))
+//       );
+
+//     if (canSendSMS) {
+//       if (contact) {
+//         console.log("📩 Sending SMS to", contact);
+//         await sendSms(contact, finalMess);
+//       } else {
+//         console.warn("⚠️ No contact found. Cannot send SMS.");
+//       }
+//     } else {
+//       console.log("📵 SMS is disabled or not applicable for this sentiment.");
+//     }
+
+//     // --- Notification check ---
+//     const notifSetting = notification?.toLowerCase();
+//     const canSendNotif =
+//       notifSetting === 'always' ||
+//       (notifSetting === 'interested' && sentimentAllowList.includes(sentiment));
+
+//     if (canSendNotif) {
+//       if (device_token) {
+//         console.log("📱 Sending FCM push notification to device token:", device_token);
+//         await push(device_token, '📞 AI Call Result', finalMessage);
+//       } else {
+//         console.warn("⚠️ No device token found. Cannot send FCM notification.");
+//       }
+//     } else {
+//       console.log("🔕 Notifications are disabled or not applicable for this sentiment.");
+//     }
+
+//   } catch (error) {
+//     console.error("💥 Error in sendNotify:", error);
+//   }
+// };
 const sendNotify = async ({
   callSummary,
   userSentiment,
@@ -793,15 +927,13 @@ const sendNotify = async ({
       contact,
     } = user;
 
-    const sentimentAllowList = ['positive', 'neutral'];
-
     // --- SMS check ---
     const smsType = sms_type?.toLowerCase();
     const canSendSMS =
       sms === true &&
       (
         smsType === 'always' ||
-        (smsType === 'interested' && sentimentAllowList.includes(sentiment))
+        (smsType === 'interested' && sentiment === 'positive')
       );
 
     if (canSendSMS) {
@@ -819,7 +951,7 @@ const sendNotify = async ({
     const notifSetting = notification?.toLowerCase();
     const canSendNotif =
       notifSetting === 'always' ||
-      (notifSetting === 'interested' && sentimentAllowList.includes(sentiment));
+      (notifSetting === 'interested' && sentiment === 'positive');
 
     if (canSendNotif) {
       if (device_token) {
@@ -836,7 +968,6 @@ const sendNotify = async ({
     console.error("💥 Error in sendNotify:", error);
   }
 };
-
 
 const getUserCallStats = async (toNumber: string) => {
   try {
