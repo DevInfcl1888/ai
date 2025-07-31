@@ -395,7 +395,7 @@ const checkAndSendLowBalanceNotification = async (user: any, currentCallLimit: n
 
 import axios from 'axios';
 
-const OPENAI_API_KEY = 'your-openai-api-key'; // Replace with your API key
+const OPENAI_API_KEY =  process.env.OPENAI_API_KEY; // Replace with your API key
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 
 interface CallAnalysis {
