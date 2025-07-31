@@ -451,8 +451,8 @@ app.post("/retell-webhook", async (req, res) => {
   try {
     const webhookData = req.body;
     // console.log("📄 Webhook Data:", webhookData);
-    const transcript = webhookData.transcript;
-    console.log("📝 Transcript:", transcript);
+    const transcript = webhookData.call?.transcript;
+    console.log("📄 Transcript:", transcript);
     const event = webhookData.event;
     const call = webhookData.call;
     // console.log("📄 Call Data:", call);
