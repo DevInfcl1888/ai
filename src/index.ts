@@ -452,19 +452,19 @@ app.post("/retell-webhook", async (req, res) => {
     const webhookData = req.body;
     // console.log("📄 Webhook Data:", webhookData);
     const transcript = webhookData.call?.transcript;
-    console.log("📄 Transcript:", transcript);
+    // console.log("📄 Transcript:", transcript);
     const event = webhookData.event;
     const call = webhookData.call;
     // console.log("📄 Call Data:", call);
     const callId = call?.call_id;
     const toNumber = call?.to_number;
 
-    analyzeCallTranscript(transcript)
-  .then(result => {
-    console.log('Call Summary:', result.summary);
-    console.log('Sentiment:', result.sentiment);
-  })
-  .catch(console.error);
+  //   analyzeCallTranscript(transcript)
+  // .then(result => {
+  //   console.log('Call Summary:', result.summary);
+  //   console.log('Sentiment:', result.sentiment);
+  // })
+  // .catch(console.error);
 
 
     if (event === "call_started") {
@@ -500,7 +500,21 @@ app.post("/retell-webhook", async (req, res) => {
       const toNumber = call?.to_number;
       const startTime = call?.start_timestamp;
       const endTime = call?.end_timestamp;
+          const transcript = webhookData.call?.transcript;
+
       
+
+
+      
+  //     analyzeCallTranscript(transcript)
+  // .then(result => {
+  //   senti = result.sentiment;
+  //   summary = result.summary;
+  //   console.log('Call Summary:', result.summary);
+  //   console.log('Sentiment:', result.sentiment);
+  // })
+  // .catch(console.error);
+
       // Stop live tracking and get final duration
       const liveTrackedDuration = stopLiveDurationTracking(callId);
       
@@ -548,8 +562,18 @@ app.post("/retell-webhook", async (req, res) => {
     } else if (event === "call_analyzed") {
       console.log("📊 CALL ANALYZED EVENT DETECTED!");
 
-      const callSummary = call?.call_analysis?.call_summary || "No summary";
-      const userSentiment = call?.call_analysis?.user_sentiment || "Unknown";
+      let senti = "";
+      let summary = "";
+          const result = await analyzeCallTranscript(transcript);
+          senti = result.sentiment;
+          summary = result.summary;
+          console.log('Call Summary:', summary);
+          console.log('Sentiment:', senti);
+
+      const callSummary = summary || "No summary";
+      // const callSummary = call?.call_analysis?.call_summary || "No summary";
+      const userSentiment = senti || "Unknown";
+      // const userSentiment = call?.call_analysis?.user_sentiment || "Unknown";
       const toNumber = call?.to_number || "Unknown";
       const callId = call?.call_id;
       
