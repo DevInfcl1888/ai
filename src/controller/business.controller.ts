@@ -2,6 +2,8 @@
 import { Request, Response } from 'express';
 import { getCollection } from '../config/database';
 import { Business } from '../models/businessModel';
+import { push } from '../services/sendPushNotification'; // adjust path
+
 
 // export const createBusiness = async (
 //   req: Request,
@@ -27,6 +29,7 @@ import { Business } from '../models/businessModel';
 //     res.status(500).json({ error: 'Internal server error' });
 //   }
 // };
+// import { push } from '..//services/sendPushNotification'; // adjust path
 
 export const createBusiness = async (
   req: Request,
@@ -47,7 +50,7 @@ export const createBusiness = async (
       Title: 'new',
       Response: '',
       Status: 'pending',
-      term : 'new',
+      term: 'new',
       is_payment: false,
       is_active: false,
       expiry_at: "",
@@ -58,6 +61,26 @@ export const createBusiness = async (
     const businessCollection = await getCollection('business');
     const result = await businessCollection.insertOne(documentToInsert);
 
+    // Send push notification to user
+    try {
+      const usersCollection = await getCollection('users');
+      const user = await usersCollection.findOne({ _id: new ObjectId(businessData.userId) });
+      
+      if (user && user.device_token) {
+        await push(
+          user.device_token,
+          'Business Created Successfully',
+          `Your business "${businessData.businessName}" has been created successfully and is pending approval.`
+        );
+        console.log('✅ Push notification sent for business creation');
+      } else {
+        console.log('⚠️ User not found or device token not available for push notification');
+      }
+    } catch (notificationError) {
+      // Log the error but don't fail the entire request
+      console.error('❌ Failed to send push notification:', notificationError);
+    }
+
     res.status(201).json({
       message: 'Business created successfully',
       businessId: result.insertedId,
@@ -67,6 +90,46 @@ export const createBusiness = async (
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+// export const createBusiness = async (
+//   req: Request,
+//   res: Response
+// ): Promise<void> => {
+//   try {
+//     const businessData: Business = req.body;
+
+//     if (!businessData.userId || !businessData.businessName) {
+//       res.status(400).json({ error: 'userId and businessName are required.' });
+//       return;
+//     }
+
+//     const now = new Date();
+
+//     const documentToInsert = {
+//       ...businessData,
+//       Title: 'new',
+//       Response: '',
+//       Status: 'pending',
+//       term : 'new',
+//       is_payment: false,
+//       is_active: false,
+//       expiry_at: "",
+//       created_at: now,
+//       updated_at: now,
+//     };
+
+//     const businessCollection = await getCollection('business');
+//     const result = await businessCollection.insertOne(documentToInsert);
+
+//     res.status(201).json({
+//       message: 'Business created successfully',
+//       businessId: result.insertedId,
+//     });
+//   } catch (error) {
+//     console.error('Error saving business:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// };
 
 
 export const getBusinessByUserId = async (req: Request, res: Response) : Promise<void> => {
@@ -221,7 +284,6 @@ export const updateBusinessById = async (req: Request, res: Response): Promise<v
 // };
 
 
-import { push } from '../services/sendPushNotification'; // adjust path
 
 export const updateBusinessStatus = async (req: Request, res: Response): Promise<void> => {
   try {
