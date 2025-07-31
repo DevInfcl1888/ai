@@ -393,6 +393,57 @@ const checkAndSendLowBalanceNotification = async (user: any, currentCallLimit: n
 // };
 
 
+import axios from 'axios';
+
+const OPENAI_API_KEY = 'your-openai-api-key'; // Replace with your API key
+const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
+
+interface CallAnalysis {
+  summary: string;
+  sentiment: 'positive' | 'negative' | 'neutral';
+}
+
+export async function analyzeCallTranscript(transcript: string): Promise<CallAnalysis> {
+  const systemPrompt = `You are a call center assistant. 
+Analyze the call transcript and provide:
+
+1. A brief summary (2-4 sentences).
+2. Overall sentiment of the call as one word: positive, negative, or neutral.
+Only return the response in this JSON format: 
+{ "summary": "<summary>", "sentiment": "<sentiment>" }`;
+
+  try {
+    const response = await axios.post(
+      OPENAI_API_URL,
+      {
+        model: 'gpt-4', // or 'gpt-3.5-turbo' if preferred
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: transcript }
+        ],
+        temperature: 0.3
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    const content = response.data.choices[0].message.content;
+
+    // Attempt to parse the model's JSON output
+    const parsed: CallAnalysis = JSON.parse(content);
+
+    return parsed;
+  } catch (error: any) {
+    console.error('Error analyzing transcript:', error?.response?.data || error.message);
+    throw new Error('Failed to analyze call transcript');
+  }
+}
+
+
 app.post("/retell-webhook", async (req, res) => {
   console.log("🔔 RETELL AI WEBHOOK ENDPOINT HIT!");
   console.log("⏰ Timestamp:", new Date().toISOString());
@@ -407,6 +458,14 @@ app.post("/retell-webhook", async (req, res) => {
     // console.log("📄 Call Data:", call);
     const callId = call?.call_id;
     const toNumber = call?.to_number;
+
+    analyzeCallTranscript(transcript)
+  .then(result => {
+    console.log('Call Summary:', result.summary);
+    console.log('Sentiment:', result.sentiment);
+  })
+  .catch(console.error);
+
 
     if (event === "call_started") {
       console.log("📱 CALL STARTED EVENT DETECTED!");
