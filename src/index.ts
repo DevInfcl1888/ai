@@ -403,13 +403,23 @@ interface CallAnalysis {
   sentiment: 'positive' | 'negative' | 'neutral';
 }
 
+
+
+interface CallAnalysis {
+  summary: string;
+  sentiment: 'positive' | 'negative' | 'neutral';
+}
+
 export async function analyzeCallTranscript(transcript: string): Promise<CallAnalysis> {
   const systemPrompt = `You are a call center assistant. 
 Analyze the call transcript and provide:
 
 1. A brief summary (2-4 sentences).
-2. Overall sentiment of the call as one word like user agree then: positive, user disagree then: negative, user neither agree nor disagree then: neutral.
-Only return the response in this JSON format: 
+2. if user is interseted or shows any signs of interest, give me output of postive, if shows signs of neutral or not sure , then neutral, if not interestred then negative.
+
+IMPORTANT: Return ONLY valid JSON without any markdown formatting or code blocks. Do not wrap your response in \`\`\`json or any other formatting.
+
+Return the response in this exact JSON format: 
 { "summary": "<summary>", "sentiment": "<sentiment>" }`;
 
   try {
@@ -431,15 +441,47 @@ Only return the response in this JSON format:
       }
     );
 
-    const content = response.data.choices[0].message.content;
+    let content = response.data.choices[0].message.content;
+    
+    // Clean up the response by removing markdown code blocks if present
+    content = content.trim();
+    
+    // Remove ```json and ``` if present
+    if (content.startsWith('```json')) {
+      content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+    } else if (content.startsWith('```')) {
+      content = content.replace(/^```\s*/, '').replace(/\s*```$/, '');
+    }
+    
+    // Remove any leading/trailing whitespace
+    content = content.trim();
+
+    console.log('Cleaned content for parsing:', content);
 
     // Attempt to parse the model's JSON output
     const parsed: CallAnalysis = JSON.parse(content);
 
+    // Validate the parsed result
+    if (!parsed.summary || !parsed.sentiment) {
+      throw new Error('Invalid response format from OpenAI');
+    }
+
+    // Ensure sentiment is one of the expected values
+    if (!['positive', 'negative', 'neutral'].includes(parsed.sentiment)) {
+      console.warn(`Unexpected sentiment value: ${parsed.sentiment}, defaulting to neutral`);
+      parsed.sentiment = 'neutral';
+    }
+
     return parsed;
   } catch (error: any) {
     console.error('Error analyzing transcript:', error?.response?.data || error.message);
-    throw new Error('Failed to analyze call transcript');
+    console.error('Raw OpenAI response:', error?.response?.data?.choices?.[0]?.message?.content);
+    
+    // Return a fallback response instead of throwing
+    return {
+      summary: "Unable to analyze call transcript due to parsing error.",
+      sentiment: 'neutral'
+    };
   }
 }
 
@@ -1276,6 +1318,72 @@ app.get('/get-call-balance', async (req: Request, res: Response): Promise<void> 
   } catch (error) {
     console.error('Error in /get-call-balance:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+
+
+// Interface for the call document structure
+interface CallDocument {
+  _id: ObjectId;
+  call_id: string;
+  user_id: ObjectId;
+  to_number: string;
+  duration_seconds: number;
+  duration_minutes: number;
+  sentiment: string;
+  summary: string;
+  timestamp: Date;
+  created_at: Date;
+}
+
+
+// Single API endpoint to get user calls
+app.post('/user-calls', async (req: Request, res: Response) : Promise<void> => {
+  try {
+    const { user_id } = req.body;
+
+    // Validate input
+    if (!user_id) {
+       res.status(400).json({
+        success: false,
+        message: 'user_id is required in the request payload'
+      });
+      return;
+    }
+
+    // Validate ObjectId format
+    if (!ObjectId.isValid(user_id)) {
+       res.status(400).json({
+        success: false,
+        message: 'Invalid user_id format'
+      });
+      return;
+    }
+
+    // Get calls collection (await since getCollection returns a Promise)
+    const callsCollection = await getCollection('calls');
+
+    // Fetch calls for the user, sorted by timestamp (latest to oldest)
+    const calls = await callsCollection
+      .find({ user_id: new ObjectId(user_id) })
+      .sort({ timestamp: -1 }) // -1 for descending order (latest first)
+      .toArray();
+
+    // Return successful response
+    res.status(200).json({
+      success: true,
+      data: calls,
+      total_calls: calls.length,
+      message: calls.length > 0 ? 'Calls retrieved successfully' : 'No calls found for this user'
+    });
+
+  } catch (error) {
+    console.error('Error fetching user calls:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error while fetching calls'
+    });
   }
 });
 
