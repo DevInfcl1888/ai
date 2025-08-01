@@ -1156,11 +1156,77 @@ import { ObjectId } from 'mongodb';
 import moment from 'moment-timezone';
 
 
-app.post('/get-call-balance', async (req: Request, res: Response) : Promise<void> => {
-  const { userId } = req.body;
+// app.post('/get-call-balance', async (req: Request, res: Response) : Promise<void> => {
+//   const { userId } = req.body;
+
+//   if (!userId) {
+//      res.status(400).json({ success: false, message: 'userId is required' });
+//   }
+
+//   try {
+//     const usersCollection = await getCollection('users');
+//     const aiPlansCollection = await getCollection('ai_plans');
+
+//     const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
+
+//     if (!user) {
+//        res.status(404).json({ success: false, message: 'User not found' });
+//        return;
+//     }
+
+//     // Get time using user's timezone (default to UTC if not found)
+//     const timeZone = user.timeZone || 'UTC';
+//     const userTime = moment().tz(timeZone).format('YYYY-MM-DD HH:mm:ss');
+
+//     // Check if the user is "free" based on a type field or by inferring it
+//     if (user.type === 'free') {
+//        res.json({
+//         success: true,
+//         time: userTime,
+//         call_balance: 'unlimited'
+//       });
+//       return;
+//     }
+
+//     // If not free, check AI plan
+//     const aiPlan = await aiPlansCollection.findOne({ user_id: new ObjectId(userId) });
+
+//     if (!aiPlan || !aiPlan.plan_detail || typeof aiPlan.plan_detail.call_limit !== 'number') {
+//        res.status(404).json({
+//         success: false,
+//         message: 'AI Plan or call limit not found for this user'
+//       });
+//       return;
+//     }
+
+//     const callLimit = aiPlan.plan_detail.call_limit;
+
+//     const call_balance =
+//       callLimit === -5400 ? 'no balance left' : callLimit > -5400 ? 'okay' : 'invalid';
+
+//      res.json({
+//       success: true,
+//       time: userTime,
+//       call_balance
+//     });
+
+//   } catch (error) {
+//     console.error('Error in /get-call-balance:', error);
+//      res.status(500).json({ success: false, message: 'Internal server error' });
+//   }
+// });
+app.get('/get-call-balance', async (req: Request, res: Response): Promise<void> => {
+  const userId = req.query.userId as string;
 
   if (!userId) {
-     res.status(400).json({ success: false, message: 'userId is required' });
+    res.status(400).json({ success: false, message: 'userId is required as a query parameter' });
+    return;
+  }
+
+  // Check if userId is a valid ObjectId
+  if (!ObjectId.isValid(userId)) {
+    res.status(400).json({ success: false, message: 'Invalid userId format' });
+    return;
   }
 
   try {
@@ -1170,17 +1236,15 @@ app.post('/get-call-balance', async (req: Request, res: Response) : Promise<void
     const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
 
     if (!user) {
-       res.status(404).json({ success: false, message: 'User not found' });
-       return;
+      res.status(404).json({ success: false, message: 'User not found' });
+      return;
     }
 
-    // Get time using user's timezone (default to UTC if not found)
     const timeZone = user.timeZone || 'UTC';
     const userTime = moment().tz(timeZone).format('YYYY-MM-DD HH:mm:ss');
 
-    // Check if the user is "free" based on a type field or by inferring it
     if (user.type === 'free') {
-       res.json({
+      res.json({
         success: true,
         time: userTime,
         call_balance: 'unlimited'
@@ -1188,11 +1252,10 @@ app.post('/get-call-balance', async (req: Request, res: Response) : Promise<void
       return;
     }
 
-    // If not free, check AI plan
     const aiPlan = await aiPlansCollection.findOne({ user_id: new ObjectId(userId) });
 
     if (!aiPlan || !aiPlan.plan_detail || typeof aiPlan.plan_detail.call_limit !== 'number') {
-       res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'AI Plan or call limit not found for this user'
       });
@@ -1204,7 +1267,7 @@ app.post('/get-call-balance', async (req: Request, res: Response) : Promise<void
     const call_balance =
       callLimit === -5400 ? 'no balance left' : callLimit > -5400 ? 'okay' : 'invalid';
 
-     res.json({
+    res.json({
       success: true,
       time: userTime,
       call_balance
@@ -1212,9 +1275,10 @@ app.post('/get-call-balance', async (req: Request, res: Response) : Promise<void
 
   } catch (error) {
     console.error('Error in /get-call-balance:', error);
-     res.status(500).json({ success: false, message: 'Internal server error' });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
+
 
 export default router;
 
