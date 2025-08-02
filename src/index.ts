@@ -72,6 +72,11 @@ import {
 } from "./controller/info"  
 dotenv.config();
 import path from 'path';
+import {startAppleReceiptVerificationJob, 
+  stopAppleReceiptVerificationJob, 
+  runAppleReceiptVerificationJobNow,
+  checkAndVerifyAppleReceipts,
+  verifySpecificPlanReceipt} from "./cron/verify.cron";
 
 const app = express();
 app.use(express.json());
@@ -1401,6 +1406,12 @@ const server = app.listen(PORT, () => {
 });
 
 startPlanExpiryJob();
+
+startAppleReceiptVerificationJob();
+  stopAppleReceiptVerificationJob();
+  runAppleReceiptVerificationJobNow();
+  checkAndVerifyAppleReceipts();
+  // verifySpecificPlanReceipt();
 
 // Handle graceful shutdown
 process.on("SIGTERM", async () => {
