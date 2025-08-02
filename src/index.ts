@@ -77,10 +77,13 @@ import {startAppleReceiptVerificationJob,
   runAppleReceiptVerificationJobNow,
   checkAndVerifyAppleReceipts,
   verifySpecificPlanReceipt} from "./cron/verify.cron";
+import bodyParser from 'body-parser';
 
 const app = express();
 app.use(express.json());
 app.use(express.static(path.resolve(__dirname, 'public')));
+app.use(bodyParser.json({ limit: '10mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 
 
 connectToDatabase()
