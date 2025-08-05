@@ -423,9 +423,9 @@ export async function analyzeCallTranscript(transcript: string): Promise<CallAna
 Analyze the call transcript and provide:
 
 1. A brief summary (2-4 sentences).
-2. if user is interested or shows any signs of interest and provides the requested information (e.g. name, address etc), output "Positive". 
-If user shows some interest (asks questions, stays on the call) but hangs up or ends the call before providing any information, output "Neutral".
-If user is rude, disinterested, hangup in the middle or clearly not interested throughout the call and provides no useful information, output "Negative".
+2. if user is interested or shows any signs of interest and provides the requested information (e.g. name, address etc), output "positive". 
+If user shows some interest (asks questions, stays on the call) but hangs up or ends the call before providing any information, output "neutral".
+If user is rude, disinterested, hangup in the middle or clearly not interested throughout the call and provides no useful information, output "negative".
 
 IMPORTANT: Return ONLY valid JSON without any markdown formatting or code blocks. Do not wrap your response in \`\`\`json or any other formatting.
 
@@ -487,11 +487,11 @@ Return the response in this exact JSON format:
       throw new Error('Invalid response format from OpenAI');
     }
 
-    // Ensure sentiment is one of the expected values
-    if (!['positive', 'negative', 'neutral'].includes(parsed.sentiment)) {
-      console.warn(`Unexpected sentiment value: ${parsed.sentiment}, defaulting to neutral`);
-      parsed.sentiment = 'neutral';
-    }
+    // // Ensure sentiment is one of the expected values
+    // if (!['positive', 'negative', 'neutral'].includes(parsed.sentiment)) {
+    //   console.warn(`Unexpected sentiment value: ${parsed.sentiment}, defaulting to neutral`);
+    //   parsed.sentiment = 'neutral';
+    // }
 
     return parsed;
   } catch (error: any) {
