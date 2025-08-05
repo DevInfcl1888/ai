@@ -24,5 +24,6 @@ export interface SocialUser {
     sms: boolean,
     timeZone: string;
     call_count: number; // <-- include this in the type definition
+    schedule: any
 
 }

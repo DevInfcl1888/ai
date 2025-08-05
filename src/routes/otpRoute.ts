@@ -207,7 +207,7 @@ export async function verifyOTPhandler(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { phoneNumber, otp, type, device_token, timeZone } = req.body;
+    const { phoneNumber, otp, type, device_token, timeZone, schedule } = req.body;
     console.log("device", device_token);
 
     if (!phoneNumber || !otp) {
@@ -240,7 +240,7 @@ export async function verifyOTPhandler(
       }
 
       if (type === "register") {
-        const result = await registerUser(phoneNumber, device_token, timeZone);
+        const result = await registerUser(phoneNumber, device_token, timeZone, schedule);
         res.status(200).json({
           success: true,
           message: "User registered successfully",
@@ -264,7 +264,7 @@ export async function verifyOTPhandler(
 
 
 
-async function registerUser(phoneNumber: string, device_token: string, TimeZone: string) {
+async function registerUser(phoneNumber: string, device_token: string, TimeZone: string, schedule: any) {
   const usersCollection = await getCollection("users");
   const aiPlansCollection = await getCollection("ai_plans");
   const vipCollection = await getCollection("vip");
@@ -293,6 +293,7 @@ async function registerUser(phoneNumber: string, device_token: string, TimeZone:
     call_count: 0,
     device_token: device_token || "",
     timeZone: TimeZone||"",
+    schedule: schedule || {},
     ...(isVIP && { type: "free" }), // <-- save "type": "free" if VIP
     ...(isBlocked && { is_blocked: true }) // add "is_blocked": true if blocked
 
