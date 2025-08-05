@@ -152,7 +152,7 @@ export const addPhoneBySocialId = async (req: Request, res: Response): Promise<v
 
 
 export const socialRegisterHandler = async (req: Request, res: Response) => {
-  const { socialId, socialType, user, device_token, timeZone } = req.body;
+  const { socialId, socialType, user, device_token, timeZone, schedule } = req.body;
 
   if (!socialId || !socialType) {
     res.status(400).json({ error: "Social ID and social type are required" });
@@ -191,6 +191,7 @@ export const socialRegisterHandler = async (req: Request, res: Response) => {
     timeZone: timeZone,
     sms: false,
     call_count: 0,
+    schedule: schedule || {},
   };
 
   const result = await usersCollection.insertOne(newUser);
