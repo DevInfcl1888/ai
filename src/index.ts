@@ -425,7 +425,7 @@ Analyze the call transcript and provide:
 1. A brief summary (2-4 sentences).
 2. if user is interested or shows any signs of interest and provides the requested information (e.g. name, address etc), output "Positive". 
 If user shows some interest (asks questions, stays on the call) but hangs up or ends the call before providing any information, output "Neutral".
-If user is rude, disinterested, or clearly not interested throughout the call and provides no useful information, output "Negative".
+If user is rude, disinterested,cuts the call or hangup in the middle or clearly not interested throughout the call and provides no useful information, output "Negative".
 
 IMPORTANT: Return ONLY valid JSON without any markdown formatting or code blocks. Do not wrap your response in \`\`\`json or any other formatting.
 
