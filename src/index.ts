@@ -423,12 +423,25 @@ export async function analyzeCallTranscript(transcript: string): Promise<CallAna
 Analyze the call transcript and provide:
 
 1. A brief summary (2-4 sentences).
-2. if user is interseted or shows any signs of interest, give me output of postive, if shows signs of neutral or not sure , then neutral, if not interestred then negative.
+2. if user is interested or shows any signs of interest and provides the requested information (e.g. name, address etc), output "Positive". 
+If user shows some interest (asks questions, stays on the call) but hangs up or ends the call before providing any information, output "Neutral".
+If user is rude, disinterested, or clearly not interested throughout the call and provides no useful information, output "Negative".
 
 IMPORTANT: Return ONLY valid JSON without any markdown formatting or code blocks. Do not wrap your response in \`\`\`json or any other formatting.
 
 Return the response in this exact JSON format: 
 { "summary": "<summary>", "sentiment": "<sentiment>" }`;
+
+//   const systemPrompt = `You are a call center assistant. 
+// Analyze the call transcript and provide:
+
+// 1. A brief summary (2-4 sentences).
+// 2. if user is interseted or shows any signs of interest, give me output of postive, if shows signs of neutral or not sure , then neutral, if not interestred then negative.
+
+// IMPORTANT: Return ONLY valid JSON without any markdown formatting or code blocks. Do not wrap your response in \`\`\`json or any other formatting.
+
+// Return the response in this exact JSON format: 
+// { "summary": "<summary>", "sentiment": "<sentiment>" }`;
 
   try {
     const response = await axios.post(
@@ -1330,6 +1343,134 @@ app.get('/get-call-balance', async (req: Request, res: Response): Promise<void> 
 });
 
 
+// app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
+//   const userId = req.query.userId as string;
+
+//   if (!userId) {
+//     res.status(400).json({ success: false, message: 'userId is required as a query parameter' });
+//     return;
+//   }
+
+//   if (!ObjectId.isValid(userId)) {
+//     res.status(400).json({ success: false, message: 'Invalid userId format' });
+//     return;
+//   }
+
+//   try {
+//     const usersCollection = await getCollection('users');
+//     const aiPlansCollection = await getCollection('ai_plans');
+
+//     const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
+
+//     if (!user) {
+//       res.status(404).json({ success: false, message: 'User not found' });
+//       return;
+//     }
+
+//     const timeZone = user.timeZone || 'UTC';
+//     const userTime = moment().tz(timeZone);
+//     const currentDay = userTime.format('dddd');
+//     const currentTime = userTime.format('hh:mm A');
+
+//     // 🔒 Hardcoded schedule
+//     const schedule: Record<string, { open: boolean; hours: string | null }> = {
+//       Monday: { open: true, hours: '05:00 AM - 06:00 AM' },
+//       Tuesday: { open: true, hours: '05:00 AM - 06:00 AM' },
+//       Wednesday: { open: true, hours: '05:00 AM - 06:00 AM' },
+//       Thursday: { open: true, hours: '05:00 AM - 06:00 AM' },
+//       Friday: { open: true, hours: '05:00 AM - 06:00 AM' },
+//       Saturday: { open: false, hours: null },
+//       Sunday: { open: false, hours: null },
+//     };
+
+//     const isCurrentInRange = (hours: string): boolean => {
+//       const [start, end] = hours.split(' - ');
+//       const startTime = moment(start, 'hh:mm A');
+//       const endTime = moment(end, 'hh:mm A');
+//       const now = moment(currentTime, 'hh:mm A');
+//       return now.isBetween(startTime, endTime);
+//     };
+
+//     const findNextOpen = () => {
+//       const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+//       let index = daysOfWeek.indexOf(currentDay);
+//       for (let i = 1; i <= 7; i++) {
+//         const nextDay = daysOfWeek[(index + i) % 7];
+//         const nextSchedule = schedule[nextDay];
+//         if (nextSchedule?.open && nextSchedule.hours) {
+//           return { day: nextDay, hours: nextSchedule.hours };
+//         }
+//       }
+//       return null;
+//     };
+
+//     const todaySchedule = schedule[currentDay];
+//     let availabilityStatus = '';
+//     let status = '';
+
+//     if (todaySchedule?.open) {
+//       if (todaySchedule.hours && isCurrentInRange(todaySchedule.hours)) {
+//         availabilityStatus = 'available for appointment';
+//         status = 'available';
+//       } else {
+//         const nextOpen = findNextOpen();
+//         availabilityStatus = nextOpen
+//           ? `Next available on ${nextOpen.day} at ${nextOpen.hours}`
+//           : 'No upcoming available slots';
+//         status = 'unavailable';
+//       }
+//     } else {
+//       const nextOpen = findNextOpen();
+//       availabilityStatus = nextOpen
+//         ? `Next available on ${nextOpen.day} at ${nextOpen.hours}`
+//         : 'No upcoming available slots';
+//       status = 'unavailable';
+//     }
+
+//     if (user.type === 'free') {
+//       res.json({
+//         success: true,
+//         time: userTime.format('YYYY-MM-DD HH:mm:ss'),
+//         call_balance: 'unlimited',
+//         availabilityStatus: status,
+//         availability: availabilityStatus,
+//       });
+//       return;
+//     }
+
+//     const aiPlan = await aiPlansCollection.findOne({ user_id: new ObjectId(userId) });
+
+//     if (!aiPlan || !aiPlan.plan_detail || typeof aiPlan.plan_detail.call_limit !== 'number') {
+//       res.status(404).json({
+//         success: false,
+//         message: 'AI Plan or call limit not found for this user',
+//       });
+//       return;
+//     }
+
+//     const callLimit = aiPlan.plan_detail.call_limit;
+
+//     const call_balance =
+//       callLimit === -5400 ? 'no balance left' : callLimit > -5400 ? 'okay' : 'invalid';
+
+//     res.json({
+//       success: true,
+//       time: userTime.format('YYYY-MM-DD HH:mm:ss'),
+//       call_balance,
+//       availabilityStatus: status,
+//       availability: availabilityStatus,
+//     });
+
+//   } catch (error) {
+//     console.error('Error in /get-call-balance:', error);
+//     res.status(500).json({ success: false, message: 'Internal server error' });
+//   }
+// });
+
+
+// Interface for the call document structure
+
+
 app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
   const userId = req.query.userId as string;
 
@@ -1359,22 +1500,19 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
     const currentDay = userTime.format('dddd');
     const currentTime = userTime.format('hh:mm A');
 
-    // 🔒 Hardcoded schedule
-    const schedule: Record<string, { open: boolean; hours: string | null }> = {
-      Monday: { open: true, hours: '05:00 AM - 06:00 AM' },
-      Tuesday: { open: true, hours: '05:00 AM - 06:00 AM' },
-      Wednesday: { open: true, hours: '05:00 AM - 06:00 AM' },
-      Thursday: { open: true, hours: '05:00 AM - 06:00 AM' },
-      Friday: { open: true, hours: '05:00 AM - 06:00 AM' },
-      Saturday: { open: false, hours: null },
-      Sunday: { open: false, hours: null },
-    };
+    // 🔁 Use schedule from user document
+    const schedule = user.schedule as Record<string, { open: boolean; hours: string | null }>;
+
+    if (!schedule || typeof schedule !== 'object') {
+      res.status(400).json({ success: false, message: 'User schedule is not available or malformed' });
+      return;
+    }
 
     const isCurrentInRange = (hours: string): boolean => {
       const [start, end] = hours.split(' - ');
-      const startTime = moment(start, 'hh:mm A');
-      const endTime = moment(end, 'hh:mm A');
-      const now = moment(currentTime, 'hh:mm A');
+      const startTime = moment(start, 'HH:mm');
+      const endTime = moment(end, 'HH:mm');
+      const now = moment(userTime.format('HH:mm'), 'HH:mm');
       return now.isBetween(startTime, endTime);
     };
 
@@ -1449,13 +1587,11 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
     });
 
   } catch (error) {
-    console.error('Error in /get-call-balance:', error);
+    console.error('Error in /get-schedule:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
-
-// Interface for the call document structure
 interface CallDocument {
   _id: ObjectId;
   call_id: string;
