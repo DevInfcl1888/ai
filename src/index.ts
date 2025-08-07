@@ -419,33 +419,35 @@ interface CallAnalysis {
 }
 
 export async function analyzeCallTranscript(transcript: string): Promise<CallAnalysis> {
- const systemPrompt = `You are a call center assistant. 
+//  const systemPrompt = `You are a call center assistant. 
+// Analyze the call transcript and provide:
+
+// 1. A brief summary (2-4 sentences).
+// 2. Determine the sentiment of the user based on the following strict rules:
+
+// - "positive" – If the user shows any sign of interest **and provides the requested personal information** (e.g. name, address, etc).
+// - "neutral" – If the user shows some interest (asks questions, stays on the call, shows curiosity) **but ends the call without providing any personal information** (like name, address, etc).
+// - "negative" – If the user is rude, disinterested, or clearly not interested throughout the call **and provides no useful information**.
+
+// IMPORTANT: Return ONLY valid JSON without any markdown formatting or code blocks. Do not wrap your response in \`\`\`json or any other formatting.
+
+// Return the response in this exact JSON format: 
+// { "summary": "<summary>", "sentiment": "<sentiment>" }`;
+const systemPrompt = `You are a call center assistant. 
 Analyze the call transcript and provide:
 
 1. A brief summary (2-4 sentences).
 2. Determine the sentiment of the user based on the following strict rules:
 
 - "positive" – If the user shows any sign of interest **and provides the requested personal information** (e.g. name, address, etc).
-- "neutral" – If the user shows some interest (asks questions, stays on the call, shows curiosity) **but ends the call without providing any personal information** (like name, address, etc).
+- "neutral" – If the user shows some interest (asks questions, stays on the call, shows curiosity) **but ends the call without providing any personal information** (like name, address, etc), OR if the user shows interest but hangs up before completing the interaction.
 - "negative" – If the user is rude, disinterested, or clearly not interested throughout the call **and provides no useful information**.
 
 IMPORTANT: Return ONLY valid JSON without any markdown formatting or code blocks. Do not wrap your response in \`\`\`json or any other formatting.
 
 Return the response in this exact JSON format: 
 { "summary": "<summary>", "sentiment": "<sentiment>" }`;
- 
-//  const systemPrompt = `You are a call center assistant. 
-// Analyze the call transcript and provide:
 
-// 1. A brief summary (2-4 sentences).
-// 2. if user is interested or shows any signs of interest and provides the requested information (e.g. name, address etc), output "positive". 
-// If user shows some interest (asks questions, stays on the call) but hangs up or ends the call before providing any information, output "neutral".
-// If user is rude, disinterested, hangup in the middle or clearly not interested throughout the call and provides no useful information, output "negative".
-
-// IMPORTANT: Return ONLY valid JSON without any markdown formatting or code blocks. Do not wrap your response in \`\`\`json or any other formatting.
-
-// Return the response in this exact JSON format: 
-// { "summary": "<summary>", "sentiment": "<sentiment>" }`;
 
 
   try {
