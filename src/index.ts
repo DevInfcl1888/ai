@@ -1442,8 +1442,8 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
         availabilityStatus = 'available for appointment';
         status = 'available';
       } else if (nowMoment.isBefore(startMoment)) {
-        // 💡 Fix: if time is before start, show today's availability
-        availabilityStatus = `Next available on ${currentDay} at ${todaySchedule.hours}`;
+        // ✅ Today is open but hasn't started yet — show "today"
+        availabilityStatus = `Next available today at ${todaySchedule.hours}`;
         status = 'unavailable';
       } else {
         const nextOpen = findNextOpen();
