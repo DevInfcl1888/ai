@@ -433,19 +433,24 @@ export async function analyzeCallTranscript(transcript: string): Promise<CallAna
 
 // Return the response in this exact JSON format: 
 // { "summary": "<summary>", "sentiment": "<sentiment>" }`;
-const systemPrompt = `You are a call center assistant. 
-Analyze the call transcript and provide:
+const systemPrompt = `You are a call center assistant.
+Analyze the entire call transcript carefully, including the ending, and provide:
 
-1. A brief summary (2-4 sentences).
+1. A brief summary (2–4 sentences), including whether the user completed the conversation or ended the call early before providing required personal details like their full name or address.
+
 2. Determine the sentiment of the user based on the following strict rules:
 
-- "positive" – If the user shows any sign of interest **and provides the requested personal information** (e.g. name, address, etc).
-- "neutral" – If the user shows some interest (asks questions, stays on the call, shows curiosity) **but ends the call without providing any personal information** (like name, address, etc), OR if the user shows interest but hangs up before completing the interaction.
-- "negative" – If the user is rude, disinterested, or clearly not interested throughout the call **and provides no useful information**.
+- "positive" – If the user shows any sign of interest **AND provides their own personal information** (e.g. full name, address, etc).
+- "neutral" – If the user shows some interest (asks questions, responds cooperatively, or stays on the call) **BUT hangs up or ends the call before giving any of their own personal information** (like full name, address, etc).
+- "negative" – If the user is rude, disinterested, uncooperative, or ends the call quickly without sharing any useful info.
 
-IMPORTANT: Return ONLY valid JSON without any markdown formatting or code blocks. Do not wrap your response in \`\`\`json or any other formatting.
+Important notes:
+- Providing pet information (name, weight, breed, etc.) is NOT enough for a "positive" sentiment.
+- Be sure to note if the user **did not provide their full name or address** before the call ended.
+- Be sure to consider the end of the transcript to detect if the user hung up or did not respond.
 
-Return the response in this exact JSON format: 
+Return ONLY valid JSON (no markdown or formatting).
+Use this exact format:
 { "summary": "<summary>", "sentiment": "<sentiment>" }`;
 
 
