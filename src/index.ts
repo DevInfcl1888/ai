@@ -1355,7 +1355,6 @@ app.get('/get-call-balance', async (req: Request, res: Response): Promise<void> 
 });
 
 
-
 app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
   const userId = req.query.userId as string;
 
@@ -1435,9 +1434,17 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
     };
 
     if (todaySchedule.open && todaySchedule.hours) {
+      const [startHour] = todaySchedule.hours.split(' - ');
+      const startMoment = moment(startHour.trim(), 'HH:mm');
+      const nowMoment = moment(currentTime, 'HH:mm');
+
       if (isCurrentInRange(todaySchedule.hours)) {
         availabilityStatus = 'available for appointment';
         status = 'available';
+      } else if (nowMoment.isBefore(startMoment)) {
+        // 💡 Fix: if time is before start, show today's availability
+        availabilityStatus = `Next available on ${currentDay} at ${todaySchedule.hours}`;
+        status = 'unavailable';
       } else {
         const nextOpen = findNextOpen();
         availabilityStatus = nextOpen
@@ -1572,6 +1579,223 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
+
+// app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
+//   const userId = req.query.userId as string;
+
+//   if (!userId) {
+//     res.status(400).json({ success: false, message: 'userId is required as a query parameter' });
+//     return;
+//   }
+
+//   if (!ObjectId.isValid(userId)) {
+//     res.status(400).json({ success: false, message: 'Invalid userId format' });
+//     return;
+//   }
+
+//   try {
+//     const usersCollection = await getCollection('users');
+//     const aiPlansCollection = await getCollection('ai_plans');
+
+//     const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
+
+//     if (!user) {
+//       res.status(404).json({ success: false, message: 'User not found' });
+//       return;
+//     }
+
+//     const timeZone = user.timeZone || 'UTC';
+//     const userTime = moment().tz(timeZone);
+//     const currentDay = userTime.format('dddd');
+//     const currentTime = userTime.format('HH:mm');
+
+//     const schedule = user.schedule as Record<string, {
+//       open: boolean;
+//       hours: string | null;
+//       pickup_slot?: string[];
+//       service_type?: string;
+//       break_time?: string;
+//     }>;
+
+//     const todaySchedule = schedule[currentDay];
+
+//     if (!todaySchedule || typeof todaySchedule !== 'object') {
+//       res.status(400).json({ success: false, message: 'Schedule not found for today' });
+//       return;
+//     }
+
+//     const isCurrentInRange = (range: string): boolean => {
+//       const [start, end] = range.split(' - ');
+//       const now = moment(currentTime, 'HH:mm');
+//       return now.isBetween(moment(start, 'HH:mm'), moment(end, 'HH:mm'), undefined, '[)');
+//     };
+
+//     // 🔁 Break time check
+//     if (todaySchedule?.break_time && isCurrentInRange(todaySchedule.break_time)) {
+//       const [, endTime] = todaySchedule.break_time.split(' - ');
+//       res.json({
+//         success: true,
+//         message: `Sorry Break Time is going on, call after ${endTime.trim()}`,
+//         break_time: todaySchedule.break_time,
+//       });
+//       return;
+//     }
+
+//     // ⏱ Availability check
+//     let availabilityStatus = '';
+//     let status = '';
+
+//     const findNextOpen = () => {
+//       const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+//       let index = daysOfWeek.indexOf(currentDay);
+//       for (let i = 1; i <= 7; i++) {
+//         const nextDay = daysOfWeek[(index + i) % 7];
+//         const next = schedule[nextDay];
+//         if (next?.open && next.hours) {
+//           return { day: nextDay, hours: next.hours };
+//         }
+//       }
+//       return null;
+//     };
+
+//     if (todaySchedule.open && todaySchedule.hours) {
+//       if (isCurrentInRange(todaySchedule.hours)) {
+//         availabilityStatus = 'available for appointment';
+//         status = 'available';
+//       } else {
+//         const nextOpen = findNextOpen();
+//         availabilityStatus = nextOpen
+//           ? `Next available on ${nextOpen.day} at ${nextOpen.hours}`
+//           : 'No upcoming available slots';
+//         status = 'unavailable';
+//       }
+//     } else {
+//       const nextOpen = findNextOpen();
+//       availabilityStatus = nextOpen
+//         ? `Next available on ${nextOpen.day} at ${nextOpen.hours}`
+//         : 'No upcoming available slots';
+//       status = 'unavailable';
+//     }
+
+//     // 📦 Service types
+//     let serviceTypes = (todaySchedule.service_type || '').split(',').map(t => t.trim().toLowerCase());
+//     let pickup = serviceTypes.includes('pickup');
+//     let dropoff = serviceTypes.includes('dropoff');
+//     const onsite = serviceTypes.includes('onsite');
+//     const online = serviceTypes.includes('online');
+//     const service_slots = todaySchedule.pickup_slot || [];
+
+//     // 🧠 Service slot evaluation
+//     let serviceMessage = '';
+//     const nowMoment = moment(currentTime, 'HH:mm');
+
+//     const isNowInSlot = (slot: string): boolean => {
+//       const [start, end] = slot.split(' - ');
+//       const startTime = moment(start.trim(), 'HH:mm');
+//       const endTime = moment(end.trim(), 'HH:mm');
+//       return nowMoment.isBetween(startTime, endTime, undefined, '[)');
+//     };
+
+//     const matchingSlot = service_slots.find(slot => isNowInSlot(slot));
+
+//     let futureSlot = service_slots.find(slot => {
+//       const [start] = slot.split(' - ');
+//       return nowMoment.isBefore(moment(start.trim(), 'HH:mm'));
+//     });
+
+//     if (matchingSlot) {
+//       serviceMessage = 'available for service';
+//     } else if (futureSlot) {
+//       serviceMessage = `We’ll be available next at ${futureSlot}`;
+//     }
+
+//     // ❌ Disable pickup/dropoff if all today's slots are over
+//     if (!matchingSlot && !futureSlot && service_slots.length) {
+//       const latestSlotTime = service_slots
+//         .map(slot => slot.split(' - ')[1])
+//         .map(end => moment(end.trim(), 'HH:mm'))
+//         .sort((a, b) => b.diff(a))[0];
+
+//       if (latestSlotTime && nowMoment.isSameOrAfter(latestSlotTime)) {
+//         pickup = false;
+//         dropoff = false;
+//       }
+//     }
+
+//     // 🔄 Check future days for next slot
+//     const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+//     let index = daysOfWeek.indexOf(currentDay);
+//     let foundFutureSlot = false;
+
+//     if (!matchingSlot && !futureSlot) {
+//       for (let i = 1; i <= 7; i++) {
+//         const nextDay = daysOfWeek[(index + i) % 7];
+//         const daySchedule = schedule[nextDay];
+//         if (daySchedule?.open && daySchedule.pickup_slot?.length) {
+//           const nextSlot = daySchedule.pickup_slot[0];
+//           serviceMessage = `We’ll be available on ${nextDay} at ${nextSlot}`;
+//           foundFutureSlot = true;
+//           break;
+//         }
+//       }
+
+//       if (!foundFutureSlot) {
+//         serviceMessage = 'No upcoming available service slots';
+//       }
+//     }
+
+//     // 🎁 Free user response
+//     if (user.type === 'free') {
+//       res.json({
+//         success: true,
+//         time: userTime.format('YYYY-MM-DD HH:mm:ss'),
+//         call_balance: 'unlimited',
+//         availabilityStatus: status,
+//         availability: availabilityStatus,
+//         pickup,
+//         dropoff,
+//         onsite,
+//         online,
+//         service_slots,
+//         service_message: serviceMessage,
+//       });
+//       return;
+//     }
+
+//     // 🔐 Paid user
+//     const aiPlan = await aiPlansCollection.findOne({ user_id: new ObjectId(userId) });
+
+//     if (!aiPlan || !aiPlan.plan_detail || typeof aiPlan.plan_detail.call_limit !== 'number') {
+//       res.status(404).json({
+//         success: false,
+//         message: 'AI Plan or call limit not found for this user',
+//       });
+//       return;
+//     }
+
+//     const callLimit = aiPlan.plan_detail.call_limit;
+//     const call_balance =
+//       callLimit === -5400 ? 'no balance left' : callLimit > -5400 ? 'okay' : 'invalid';
+
+//     res.json({
+//       success: true,
+//       time: userTime.format('YYYY-MM-DD HH:mm:ss'),
+//       call_balance,
+//       availabilityStatus: status,
+//       availability: availabilityStatus,
+//       pickup,
+//       dropoff,
+//       onsite,
+//       online,
+//       service_slots,
+//       service_message: serviceMessage,
+//     });
+
+//   } catch (error) {
+//     console.error('Error in /get-schedule:', error);
+//     res.status(500).json({ success: false, message: 'Internal server error' });
+//   }
+// });
 
 // app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
 //   const userId = req.query.userId as string;
