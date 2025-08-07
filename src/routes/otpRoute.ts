@@ -216,7 +216,7 @@ export async function verifyOTPhandler(
 
     // Custom override for specific number
     let isVerified = false;
-    if (phoneNumber === "+919123912391" && otp === "123456") {
+    if (phoneNumber === "+19123912391" && otp === "123456") {
       isVerified = true;
     } else {
       isVerified = verifyOtp(phoneNumber, otp);
