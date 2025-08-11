@@ -1355,231 +1355,6 @@ app.get('/get-call-balance', async (req: Request, res: Response): Promise<void> 
 });
 
 
-// app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
-//   const userId = req.query.userId as string;
-
-//   if (!userId) {
-//     res.status(400).json({ success: false, message: 'userId is required as a query parameter' });
-//     return;
-//   }
-
-//   if (!ObjectId.isValid(userId)) {
-//     res.status(400).json({ success: false, message: 'Invalid userId format' });
-//     return;
-//   }
-
-//   try {
-//     const usersCollection = await getCollection('users');
-//     const aiPlansCollection = await getCollection('ai_plans');
-
-//     const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
-
-//     if (!user) {
-//       res.status(404).json({ success: false, message: 'User not found' });
-//       return;
-//     }
-
-//     const timeZone = user.timeZone || 'UTC';
-//     const userTime = moment().tz(timeZone);
-//     const currentDay = userTime.format('dddd');
-//     const currentTime = userTime.format('HH:mm');
-
-//     const schedule = user.schedule as Record<string, {
-//       open: boolean;
-//       hours: string | null;
-//       pickup_slot?: string[];
-//       service_type?: string;
-//       break_time?: string;
-//     }>;
-
-//     const todaySchedule = schedule[currentDay];
-
-//     if (!todaySchedule || typeof todaySchedule !== 'object') {
-//       res.status(400).json({ success: false, message: 'Schedule not found for today' });
-//       return;
-//     }
-
-//     const isCurrentInRange = (range: string): boolean => {
-//       const [start, end] = range.split(' - ');
-//       const now = moment(currentTime, 'HH:mm');
-//       return now.isBetween(moment(start, 'HH:mm'), moment(end, 'HH:mm'), undefined, '[)');
-//     };
-
-//     // 🔁 Break time check
-//     if (todaySchedule?.break_time && isCurrentInRange(todaySchedule.break_time)) {
-//       const [, endTime] = todaySchedule.break_time.split(' - ');
-//       res.json({
-//         success: true,
-//         message: `Sorry Break Time is going on, call after ${endTime.trim()}`,
-//         break_time: todaySchedule.break_time,
-//       });
-//       return;
-//     }
-
-//     // ⏱ Availability check
-//     let availabilityStatus = '';
-//     let status = '';
-
-//     const findNextOpen = () => {
-//       const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-//       let index = daysOfWeek.indexOf(currentDay);
-//       for (let i = 1; i <= 7; i++) {
-//         const nextDay = daysOfWeek[(index + i) % 7];
-//         const next = schedule[nextDay];
-//         if (next?.open && next.hours) {
-//           return { day: nextDay, hours: next.hours };
-//         }
-//       }
-//       return null;
-//     };
-
-//     if (todaySchedule.open && todaySchedule.hours) {
-//       const [startHour] = todaySchedule.hours.split(' - ');
-//       const startMoment = moment(startHour.trim(), 'HH:mm');
-//       const nowMoment = moment(currentTime, 'HH:mm');
-
-//       if (isCurrentInRange(todaySchedule.hours)) {
-//         availabilityStatus = 'available for appointment';
-//         status = 'available';
-//       } else if (nowMoment.isBefore(startMoment)) {
-//         // ✅ Today is open but hasn't started yet — show "today"
-//         availabilityStatus = `Next available today at ${todaySchedule.hours}`;
-//         status = 'unavailable';
-//       } else {
-//         const nextOpen = findNextOpen();
-//         availabilityStatus = nextOpen
-//           ? `Next available on ${nextOpen.day} at ${nextOpen.hours}`
-//           : 'No upcoming available slots';
-//         status = 'unavailable';
-//       }
-//     } else {
-//       const nextOpen = findNextOpen();
-//       availabilityStatus = nextOpen
-//         ? `Next available on ${nextOpen.day} at ${nextOpen.hours}`
-//         : 'No upcoming available slots';
-//       status = 'unavailable';
-//     }
-
-//     // 📦 Service types
-//     let serviceTypes = (todaySchedule.service_type || '').split(',').map(t => t.trim().toLowerCase());
-//     let pickup = serviceTypes.includes('pickup');
-//     let dropoff = serviceTypes.includes('dropoff');
-//     const onsite = serviceTypes.includes('onsite');
-//     const online = serviceTypes.includes('online');
-//     const service_slots = todaySchedule.pickup_slot || [];
-
-//     // 🧠 Service slot evaluation
-//     let serviceMessage = '';
-//     const nowMoment = moment(currentTime, 'HH:mm');
-
-//     const isNowInSlot = (slot: string): boolean => {
-//       const [start, end] = slot.split(' - ');
-//       const startTime = moment(start.trim(), 'HH:mm');
-//       const endTime = moment(end.trim(), 'HH:mm');
-//       return nowMoment.isBetween(startTime, endTime, undefined, '[)');
-//     };
-
-//     const matchingSlot = service_slots.find(slot => isNowInSlot(slot));
-
-//     let futureSlot = service_slots.find(slot => {
-//       const [start] = slot.split(' - ');
-//       return nowMoment.isBefore(moment(start.trim(), 'HH:mm'));
-//     });
-
-//     if (matchingSlot) {
-//       serviceMessage = 'available for service';
-//     } else if (futureSlot) {
-//       serviceMessage = `We’ll be available next at ${futureSlot}`;
-//     }
-
-//     // ❌ Disable pickup/dropoff if all today's slots are over
-//     if (!matchingSlot && !futureSlot && service_slots.length) {
-//       const latestSlotTime = service_slots
-//         .map(slot => slot.split(' - ')[1])
-//         .map(end => moment(end.trim(), 'HH:mm'))
-//         .sort((a, b) => b.diff(a))[0];
-
-//       if (latestSlotTime && nowMoment.isSameOrAfter(latestSlotTime)) {
-//         pickup = false;
-//         dropoff = false;
-//       }
-//     }
-
-//     // 🔄 Check future days for next slot
-//     const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-//     let index = daysOfWeek.indexOf(currentDay);
-//     let foundFutureSlot = false;
-
-//     if (!matchingSlot && !futureSlot) {
-//       for (let i = 1; i <= 7; i++) {
-//         const nextDay = daysOfWeek[(index + i) % 7];
-//         const daySchedule = schedule[nextDay];
-//         if (daySchedule?.open && daySchedule.pickup_slot?.length) {
-//           const nextSlot = daySchedule.pickup_slot[0];
-//           serviceMessage = `We’ll be available on ${nextDay} at ${nextSlot}`;
-//           foundFutureSlot = true;
-//           break;
-//         }
-//       }
-
-//       if (!foundFutureSlot) {
-//         serviceMessage = 'No upcoming available service slots';
-//       }
-//     }
-
-//     // 🎁 Free user response
-//     if (user.type === 'free') {
-//       res.json({
-//         success: true,
-//         time: userTime.format('YYYY-MM-DD HH:mm:ss'),
-//         call_balance: 'unlimited',
-//         availabilityStatus: status,
-//         availability: availabilityStatus,
-//         pickup,
-//         dropoff,
-//         onsite,
-//         online,
-//         service_slots,
-//         service_message: serviceMessage,
-//       });
-//       return;
-//     }
-
-//     // 🔐 Paid user
-//     const aiPlan = await aiPlansCollection.findOne({ user_id: new ObjectId(userId) });
-
-//     if (!aiPlan || !aiPlan.plan_detail || typeof aiPlan.plan_detail.call_limit !== 'number') {
-//       res.status(404).json({
-//         success: false,
-//         message: 'AI Plan or call limit not found for this user',
-//       });
-//       return;
-//     }
-
-//     const callLimit = aiPlan.plan_detail.call_limit;
-//     const call_balance =
-//       callLimit === -5400 ? 'no balance left' : callLimit > -5400 ? 'okay' : 'invalid';
-
-//     res.json({
-//       success: true,
-//       time: userTime.format('YYYY-MM-DD HH:mm:ss'),
-//       call_balance,
-//       availabilityStatus: status,
-//       availability: availabilityStatus,
-//       pickup,
-//       dropoff,
-//       onsite,
-//       online,
-//       service_slots,
-//       service_message: serviceMessage,
-//     });
-
-//   } catch (error) {
-//     console.error('Error in /get-schedule:', error);
-//     res.status(500).json({ success: false, message: 'Internal server error' });
-//   }
-// });
-
 app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
   const userId = req.query.userId as string;
 
@@ -1608,6 +1383,11 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
     const userTime = moment().tz(timeZone);
     const currentDay = userTime.format('dddd');
     const currentTime = userTime.format('HH:mm');
+    
+    // Tomorrow calculations
+    const tomorrowTime = moment().tz(timeZone).add(1, 'day');
+    const tomorrowDay = tomorrowTime.format('dddd');
+    const tomorrowDateKey = tomorrowTime.format('DD-MM-YY');
 
     const schedule = user.schedule as Record<string, {
       open: boolean;
@@ -1616,6 +1396,87 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
       service_type?: string;
       break_time?: string;
     }>;
+
+    // 🛑 Holiday check
+    const todayDateKey = userTime.format('DD-MM-YY');
+    const holidays = user.holidays || [];
+
+    // Modified function to find next open day, with option to skip today
+    const findNextOpen = (skipToday: boolean = false) => {
+      const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      let index = daysOfWeek.indexOf(currentDay);
+      const startIndex = skipToday ? 1 : 0;
+      
+      for (let i = startIndex; i <= 7; i++) {
+        const nextDay = daysOfWeek[(index + i) % 7];
+        const next = schedule[nextDay];
+        if (next?.open && next.hours) {
+          // If it's the same day as today but we've looped around (i.e., next week)
+          if (nextDay === currentDay && i > 0) {
+            return { day: `next ${nextDay}`, hours: next.hours };
+          }
+          return { day: nextDay, hours: next.hours };
+        }
+      }
+      return null;
+    };
+
+    const findNextOpenAfterTomorrow = () => {
+      const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      let index = daysOfWeek.indexOf(tomorrowDay);
+      for (let i = 1; i <= 7; i++) {
+        const nextDay = daysOfWeek[(index + i) % 7];
+        const next = schedule[nextDay];
+        if (next?.open && next.hours) {
+          // If it's the same day as tomorrow but we've looped around (i.e., next week)
+          if (nextDay === tomorrowDay && i > 0) {
+            return { day: `next ${nextDay}`, hours: next.hours };
+          }
+          return { day: nextDay, hours: next.hours };
+        }
+      }
+      return null;
+    };
+
+    // 🌅 Tomorrow status check
+    const getTomorrowStatus = () => {
+      // Check if tomorrow is a holiday
+      if (Array.isArray(holidays) && holidays.includes(tomorrowDateKey)) {
+        const nextOpenAfterTomorrow = findNextOpenAfterTomorrow();
+        return nextOpenAfterTomorrow
+          ? `We are on holiday tomorrow. Next available on ${nextOpenAfterTomorrow.day} at ${nextOpenAfterTomorrow.hours}`
+          : 'We are on holiday tomorrow.';
+      }
+
+      const tomorrowSchedule = schedule[tomorrowDay];
+      
+      // Check if tomorrow schedule exists and is open
+      if (!tomorrowSchedule || !tomorrowSchedule.open || !tomorrowSchedule.hours) {
+        const nextOpenAfterTomorrow = findNextOpenAfterTomorrow();
+        return nextOpenAfterTomorrow
+          ? `We will not be available tomorrow. Next available on ${nextOpenAfterTomorrow.day} at ${nextOpenAfterTomorrow.hours}`
+          : 'We will not be available tomorrow.';
+      }
+
+      // Tomorrow is available
+      return `Yeah! We will be available tomorrow from ${tomorrowSchedule.hours}`;
+    };
+
+    const tomorrowStatus = getTomorrowStatus();
+
+    if (Array.isArray(holidays) && holidays.includes(todayDateKey)) {
+      const nextOpen = findNextOpen();
+      res.json({
+        success: true,
+        message: `Sorry, we are on holiday today.`,
+        holiday: todayDateKey,
+        next_availability: nextOpen
+          ? `Next available on ${nextOpen.day} at ${nextOpen.hours}`
+          : 'No upcoming available slots',
+        tomorrow: tomorrowStatus
+      });
+      return;
+    }
 
     const todaySchedule = schedule[currentDay];
 
@@ -1637,6 +1498,7 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
         success: true,
         message: `Sorry Break Time is going on, call after ${endTime.trim()}`,
         break_time: todaySchedule.break_time,
+        tomorrow: tomorrowStatus
       });
       return;
     }
@@ -1645,22 +1507,10 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
     let availabilityStatus = '';
     let status = '';
 
-    const findNextOpen = () => {
-      const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-      let index = daysOfWeek.indexOf(currentDay);
-      for (let i = 1; i <= 7; i++) {
-        const nextDay = daysOfWeek[(index + i) % 7];
-        const next = schedule[nextDay];
-        if (next?.open && next.hours) {
-          return { day: nextDay, hours: next.hours };
-        }
-      }
-      return null;
-    };
-
     if (todaySchedule.open && todaySchedule.hours) {
-      const [startHour] = todaySchedule.hours.split(' - ');
+      const [startHour, endHour] = todaySchedule.hours.split(' - ');
       const startMoment = moment(startHour.trim(), 'HH:mm');
+      const endMoment = moment(endHour.trim(), 'HH:mm');
       const nowMoment = moment(currentTime, 'HH:mm');
 
       if (isCurrentInRange(todaySchedule.hours)) {
@@ -1670,9 +1520,10 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
         availabilityStatus = `Next available today at ${todaySchedule.hours}`;
         status = 'unavailable';
       } else {
-        const nextOpen = findNextOpen();
+        // Time has passed for today, so skip today when finding next open day
+        const nextOpen = findNextOpen(true);
         availabilityStatus = nextOpen
-          ? `Next available on ${nextOpen.day === currentDay ? 'today' : nextOpen.day} at ${nextOpen.hours}`
+          ? `Next available on ${nextOpen.day} at ${nextOpen.hours}`
           : 'No upcoming available slots';
         status = 'unavailable';
       }
@@ -1721,7 +1572,7 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
     if (matchingSlot) {
       serviceMessage = 'available for service';
     } else if (futureSlot) {
-      serviceMessage = `We’ll be available next at ${futureSlot}`;
+      serviceMessage = `We'll be available next at ${futureSlot}`;
     }
 
     // ❌ Disable pickup/dropoff if all today's slots are over
@@ -1737,7 +1588,7 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
       }
     }
 
-    // 🔄 Check future days for next slot
+    // 🔄 Check future days for next slot (with improved logic for same day next week)
     const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     let index = daysOfWeek.indexOf(currentDay);
     let foundFutureSlot = false;
@@ -1748,7 +1599,9 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
         const daySchedule = schedule[nextDay];
         if (daySchedule?.open && daySchedule.pickup_slot?.length) {
           const nextSlot = daySchedule.pickup_slot[0];
-          serviceMessage = `We’ll be available on ${nextDay === currentDay ? 'today' : nextDay} at ${nextSlot}`;
+          // If it's the same day as today but we've looped around (i.e., next week)
+          const dayLabel = (nextDay === currentDay && i > 0) ? `next ${nextDay}` : nextDay;
+          serviceMessage = `We'll be available on ${dayLabel} at ${nextSlot}`;
           foundFutureSlot = true;
           break;
         }
@@ -1773,6 +1626,7 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
         online,
         service_slots,
         service_message: serviceMessage,
+        tomorrow: tomorrowStatus
       });
       return;
     }
@@ -1804,6 +1658,7 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
       online,
       service_slots,
       service_message: serviceMessage,
+      tomorrow: tomorrowStatus
     });
 
   } catch (error) {
@@ -1811,6 +1666,302 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
+// app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
+//   const userId = req.query.userId as string;
+
+//   if (!userId) {
+//     res.status(400).json({ success: false, message: 'userId is required as a query parameter' });
+//     return;
+//   }
+
+//   if (!ObjectId.isValid(userId)) {
+//     res.status(400).json({ success: false, message: 'Invalid userId format' });
+//     return;
+//   }
+
+//   try {
+//     const usersCollection = await getCollection('users');
+//     const aiPlansCollection = await getCollection('ai_plans');
+
+//     const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
+
+//     if (!user) {
+//       res.status(404).json({ success: false, message: 'User not found' });
+//       return;
+//     }
+
+//     const timeZone = user.timeZone || 'UTC';
+//     const userTime = moment().tz(timeZone);
+//     const currentDay = userTime.format('dddd');
+//     const currentTime = userTime.format('HH:mm');
+    
+//     // Tomorrow calculations
+//     const tomorrowTime = moment().tz(timeZone).add(1, 'day');
+//     const tomorrowDay = tomorrowTime.format('dddd');
+//     const tomorrowDateKey = tomorrowTime.format('DD-MM-YY');
+
+//     const schedule = user.schedule as Record<string, {
+//       open: boolean;
+//       hours: string | null;
+//       pickup_slot?: string[];
+//       service_type?: string;
+//       break_time?: string;
+//     }>;
+
+//     // 🛑 Holiday check
+//     const todayDateKey = userTime.format('DD-MM-YY');
+//     const holidays = user.holidays || [];
+
+//     const findNextOpen = () => {
+//       const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+//       let index = daysOfWeek.indexOf(currentDay);
+//       for (let i = 1; i <= 7; i++) {
+//         const nextDay = daysOfWeek[(index + i) % 7];
+//         const next = schedule[nextDay];
+//         if (next?.open && next.hours) {
+//           return { day: nextDay, hours: next.hours };
+//         }
+//       }
+//       return null;
+//     };
+
+//     const findNextOpenAfterTomorrow = () => {
+//       const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+//       let index = daysOfWeek.indexOf(tomorrowDay);
+//       for (let i = 1; i <= 7; i++) {
+//         const nextDay = daysOfWeek[(index + i) % 7];
+//         const next = schedule[nextDay];
+//         if (next?.open && next.hours) {
+//           return { day: nextDay, hours: next.hours };
+//         }
+//       }
+//       return null;
+//     };
+
+//     // 🌅 Tomorrow status check
+//     const getTomorrowStatus = () => {
+//       // Check if tomorrow is a holiday
+//       if (Array.isArray(holidays) && holidays.includes(tomorrowDateKey)) {
+//         const nextOpenAfterTomorrow = findNextOpenAfterTomorrow();
+//         return nextOpenAfterTomorrow
+//           ? `We are on holiday tomorrow. Next available on ${nextOpenAfterTomorrow.day} at ${nextOpenAfterTomorrow.hours}`
+//           : 'We are on holiday tomorrow.';
+//       }
+
+//       const tomorrowSchedule = schedule[tomorrowDay];
+      
+//       // Check if tomorrow schedule exists and is open
+//       if (!tomorrowSchedule || !tomorrowSchedule.open || !tomorrowSchedule.hours) {
+//         const nextOpenAfterTomorrow = findNextOpenAfterTomorrow();
+//         return nextOpenAfterTomorrow
+//           ? `We will not be available tomorrow. Next available on ${nextOpenAfterTomorrow.day} at ${nextOpenAfterTomorrow.hours}`
+//           : 'We will not be available tomorrow.';
+//       }
+
+//       // Tomorrow is available
+//       return `Yeah! We will be available tomorrow from ${tomorrowSchedule.hours}`;
+//     };
+
+//     const tomorrowStatus = getTomorrowStatus();
+
+//     if (Array.isArray(holidays) && holidays.includes(todayDateKey)) {
+//       const nextOpen = findNextOpen();
+//       res.json({
+//         success: true,
+//         message: `Sorry, we are on holiday today.`,
+//         holiday: todayDateKey,
+//         next_availability: nextOpen
+//           ? `Next available on ${nextOpen.day} at ${nextOpen.hours}`
+//           : 'No upcoming available slots',
+//         tomorrow: tomorrowStatus
+//       });
+//       return;
+//     }
+
+//     const todaySchedule = schedule[currentDay];
+
+//     if (!todaySchedule || typeof todaySchedule !== 'object') {
+//       res.status(400).json({ success: false, message: 'Schedule not found for today' });
+//       return;
+//     }
+
+//     const isCurrentInRange = (range: string): boolean => {
+//       const [start, end] = range.split(' - ');
+//       const now = moment(currentTime, 'HH:mm');
+//       return now.isBetween(moment(start, 'HH:mm'), moment(end, 'HH:mm'), undefined, '[)');
+//     };
+
+//     // 🔁 Break time check
+//     if (todaySchedule?.break_time && isCurrentInRange(todaySchedule.break_time)) {
+//       const [, endTime] = todaySchedule.break_time.split(' - ');
+//       res.json({
+//         success: true,
+//         message: `Sorry Break Time is going on, call after ${endTime.trim()}`,
+//         break_time: todaySchedule.break_time,
+//         tomorrow: tomorrowStatus
+//       });
+//       return;
+//     }
+
+//     // ⏱ Availability check
+//     let availabilityStatus = '';
+//     let status = '';
+
+//     if (todaySchedule.open && todaySchedule.hours) {
+//       const [startHour] = todaySchedule.hours.split(' - ');
+//       const startMoment = moment(startHour.trim(), 'HH:mm');
+//       const nowMoment = moment(currentTime, 'HH:mm');
+
+//       if (isCurrentInRange(todaySchedule.hours)) {
+//         availabilityStatus = 'available for appointment';
+//         status = 'available';
+//       } else if (nowMoment.isBefore(startMoment)) {
+//         availabilityStatus = `Next available today at ${todaySchedule.hours}`;
+//         status = 'unavailable';
+//       } else {
+//         const nextOpen = findNextOpen();
+//         availabilityStatus = nextOpen
+//           ? `Next available on ${nextOpen.day === currentDay ? 'today' : nextOpen.day} at ${nextOpen.hours}`
+//           : 'No upcoming available slots';
+//         status = 'unavailable';
+//       }
+//     } else {
+//       const nextOpen = findNextOpen();
+//       availabilityStatus = nextOpen
+//         ? `Next available on ${nextOpen.day === currentDay ? 'today' : nextOpen.day} at ${nextOpen.hours}`
+//         : 'No upcoming available slots';
+//       status = 'unavailable';
+//     }
+
+//     // 📦 Service types
+//     let serviceTypes = (todaySchedule.service_type || '').split(',').map(t => t.trim().toLowerCase());
+//     let pickup = serviceTypes.includes('pickup');
+//     let dropoff = serviceTypes.includes('dropoff');
+//     let onsite = serviceTypes.includes('onsite');
+//     let online = serviceTypes.includes('online');
+//     const service_slots = todaySchedule.pickup_slot || [];
+
+//     // ❌ If no pickup_slot exists, set all service flags to false
+//     if (!service_slots.length) {
+//       pickup = false;
+//       dropoff = false;
+//       onsite = false;
+//       online = false;
+//     }
+
+//     // 🧠 Service slot evaluation
+//     let serviceMessage = '';
+//     const nowMoment = moment(currentTime, 'HH:mm');
+
+//     const isNowInSlot = (slot: string): boolean => {
+//       const [start, end] = slot.split(' - ');
+//       const startTime = moment(start.trim(), 'HH:mm');
+//       const endTime = moment(end.trim(), 'HH:mm');
+//       return nowMoment.isBetween(startTime, endTime, undefined, '[)');
+//     };
+
+//     const matchingSlot = service_slots.find(slot => isNowInSlot(slot));
+
+//     let futureSlot = service_slots.find(slot => {
+//       const [start] = slot.split(' - ');
+//       return nowMoment.isBefore(moment(start.trim(), 'HH:mm'));
+//     });
+
+//     if (matchingSlot) {
+//       serviceMessage = 'available for service';
+//     } else if (futureSlot) {
+//       serviceMessage = `We'll be available next at ${futureSlot}`;
+//     }
+
+//     // ❌ Disable pickup/dropoff if all today's slots are over
+//     if (!matchingSlot && !futureSlot && service_slots.length) {
+//       const latestSlotTime = service_slots
+//         .map(slot => slot.split(' - ')[1])
+//         .map(end => moment(end.trim(), 'HH:mm'))
+//         .sort((a, b) => b.diff(a))[0];
+
+//       if (latestSlotTime && nowMoment.isSameOrAfter(latestSlotTime)) {
+//         pickup = false;
+//         dropoff = false;
+//       }
+//     }
+
+//     // 🔄 Check future days for next slot
+//     const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+//     let index = daysOfWeek.indexOf(currentDay);
+//     let foundFutureSlot = false;
+
+//     if (!matchingSlot && !futureSlot) {
+//       for (let i = 1; i <= 7; i++) {
+//         const nextDay = daysOfWeek[(index + i) % 7];
+//         const daySchedule = schedule[nextDay];
+//         if (daySchedule?.open && daySchedule.pickup_slot?.length) {
+//           const nextSlot = daySchedule.pickup_slot[0];
+//           serviceMessage = `We'll be available on ${nextDay === currentDay ? 'today' : nextDay} at ${nextSlot}`;
+//           foundFutureSlot = true;
+//           break;
+//         }
+//       }
+
+//       if (!foundFutureSlot) {
+//         serviceMessage = 'No upcoming available service slots';
+//       }
+//     }
+
+//     // 🎁 Free user response
+//     if (user.type === 'free') {
+//       res.json({
+//         success: true,
+//         time: userTime.format('YYYY-MM-DD HH:mm:ss'),
+//         call_balance: 'unlimited',
+//         availabilityStatus: status,
+//         availability: availabilityStatus,
+//         pickup,
+//         dropoff,
+//         onsite,
+//         online,
+//         service_slots,
+//         service_message: serviceMessage,
+//         tomorrow: tomorrowStatus
+//       });
+//       return;
+//     }
+
+//     // 🔐 Paid user
+//     const aiPlan = await aiPlansCollection.findOne({ user_id: new ObjectId(userId) });
+
+//     if (!aiPlan || !aiPlan.plan_detail || typeof aiPlan.plan_detail.call_limit !== 'number') {
+//       res.status(404).json({
+//         success: false,
+//         message: 'AI Plan or call limit not found for this user',
+//       });
+//       return;
+//     }
+
+//     const callLimit = aiPlan.plan_detail.call_limit;
+//     const call_balance =
+//       callLimit === -5400 ? 'no balance left' : callLimit > -5400 ? 'okay' : 'invalid';
+
+//     res.json({
+//       success: true,
+//       time: userTime.format('YYYY-MM-DD HH:mm:ss'),
+//       call_balance,
+//       availabilityStatus: status,
+//       availability: availabilityStatus,
+//       pickup,
+//       dropoff,
+//       onsite,
+//       online,
+//       service_slots,
+//       service_message: serviceMessage,
+//       tomorrow: tomorrowStatus
+//     });
+
+//   } catch (error) {
+//     console.error('Error in /get-schedule:', error);
+//     res.status(500).json({ success: false, message: 'Internal server error' });
+//   }
+// });
 
 
 interface CallDocument {
