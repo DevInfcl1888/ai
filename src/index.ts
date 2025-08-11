@@ -1354,7 +1354,6 @@ app.get('/get-call-balance', async (req: Request, res: Response): Promise<void> 
   }
 });
 
-
 app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
   const userId = req.query.userId as string;
 
@@ -1612,6 +1611,29 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
       }
     }
 
+    // 🕒 Business hours calculation
+    const getBusinessHours = () => {
+      // Check if business hours are explicitly set
+      if (user.business_hours_from && user.business_hours_to) {
+        return `${user.business_hours_from} - ${user.business_hours_to}`;
+      }
+      
+      // If not set, derive from today's schedule
+      if (todaySchedule?.open && todaySchedule.hours) {
+        return todaySchedule.hours;
+      }
+      
+      // If today is closed, find the next open day's hours
+      const nextOpen = findNextOpen();
+      if (nextOpen) {
+        return nextOpen.hours;
+      }
+      
+      return 'Not available';
+    };
+
+    const businessHours = getBusinessHours();
+
     // 🎁 Free user response
     if (user.type === 'free') {
       res.json({
@@ -1620,6 +1642,7 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
         call_balance: 'unlimited',
         availabilityStatus: status,
         availability: availabilityStatus,
+        business_hours: businessHours,
         pickup,
         dropoff,
         onsite,
@@ -1652,6 +1675,7 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
       call_balance,
       availabilityStatus: status,
       availability: availabilityStatus,
+      business_hours: businessHours,
       pickup,
       dropoff,
       onsite,
@@ -1712,13 +1736,20 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
 //     const todayDateKey = userTime.format('DD-MM-YY');
 //     const holidays = user.holidays || [];
 
-//     const findNextOpen = () => {
+//     // Modified function to find next open day, with option to skip today
+//     const findNextOpen = (skipToday: boolean = false) => {
 //       const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 //       let index = daysOfWeek.indexOf(currentDay);
-//       for (let i = 1; i <= 7; i++) {
+//       const startIndex = skipToday ? 1 : 0;
+      
+//       for (let i = startIndex; i <= 7; i++) {
 //         const nextDay = daysOfWeek[(index + i) % 7];
 //         const next = schedule[nextDay];
 //         if (next?.open && next.hours) {
+//           // If it's the same day as today but we've looped around (i.e., next week)
+//           if (nextDay === currentDay && i > 0) {
+//             return { day: `next ${nextDay}`, hours: next.hours };
+//           }
 //           return { day: nextDay, hours: next.hours };
 //         }
 //       }
@@ -1732,6 +1763,10 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
 //         const nextDay = daysOfWeek[(index + i) % 7];
 //         const next = schedule[nextDay];
 //         if (next?.open && next.hours) {
+//           // If it's the same day as tomorrow but we've looped around (i.e., next week)
+//           if (nextDay === tomorrowDay && i > 0) {
+//             return { day: `next ${nextDay}`, hours: next.hours };
+//           }
 //           return { day: nextDay, hours: next.hours };
 //         }
 //       }
@@ -1808,8 +1843,9 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
 //     let status = '';
 
 //     if (todaySchedule.open && todaySchedule.hours) {
-//       const [startHour] = todaySchedule.hours.split(' - ');
+//       const [startHour, endHour] = todaySchedule.hours.split(' - ');
 //       const startMoment = moment(startHour.trim(), 'HH:mm');
+//       const endMoment = moment(endHour.trim(), 'HH:mm');
 //       const nowMoment = moment(currentTime, 'HH:mm');
 
 //       if (isCurrentInRange(todaySchedule.hours)) {
@@ -1819,9 +1855,10 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
 //         availabilityStatus = `Next available today at ${todaySchedule.hours}`;
 //         status = 'unavailable';
 //       } else {
-//         const nextOpen = findNextOpen();
+//         // Time has passed for today, so skip today when finding next open day
+//         const nextOpen = findNextOpen(true);
 //         availabilityStatus = nextOpen
-//           ? `Next available on ${nextOpen.day === currentDay ? 'today' : nextOpen.day} at ${nextOpen.hours}`
+//           ? `Next available on ${nextOpen.day} at ${nextOpen.hours}`
 //           : 'No upcoming available slots';
 //         status = 'unavailable';
 //       }
@@ -1886,7 +1923,7 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
 //       }
 //     }
 
-//     // 🔄 Check future days for next slot
+//     // 🔄 Check future days for next slot (with improved logic for same day next week)
 //     const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 //     let index = daysOfWeek.indexOf(currentDay);
 //     let foundFutureSlot = false;
@@ -1897,7 +1934,9 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
 //         const daySchedule = schedule[nextDay];
 //         if (daySchedule?.open && daySchedule.pickup_slot?.length) {
 //           const nextSlot = daySchedule.pickup_slot[0];
-//           serviceMessage = `We'll be available on ${nextDay === currentDay ? 'today' : nextDay} at ${nextSlot}`;
+//           // If it's the same day as today but we've looped around (i.e., next week)
+//           const dayLabel = (nextDay === currentDay && i > 0) ? `next ${nextDay}` : nextDay;
+//           serviceMessage = `We'll be available on ${dayLabel} at ${nextSlot}`;
 //           foundFutureSlot = true;
 //           break;
 //         }
@@ -1962,7 +2001,6 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
 //     res.status(500).json({ success: false, message: 'Internal server error' });
 //   }
 // });
-
 
 interface CallDocument {
   _id: ObjectId;
