@@ -1,5 +1,7 @@
 import express, { Request, Response } from 'express';
 import {startPlanExpiryJob} from "./cron/plan.cron";
+import { createOrUpdateDefaultPrompt, getAllDefaultPrompts, getAllglobalPrompts, addOrUpdateUserPrompt,createOrUpdateGlobalPrompt } from "./controller/prompt.controller";
+
 // Type definitions for Retell AI webhook
 interface RetellCallData {
   call_id: string;
@@ -418,105 +420,91 @@ interface CallAnalysis {
   sentiment: 'positive' | 'negative' | 'neutral';
 }
 
-export async function analyzeCallTranscript(transcript: string): Promise<CallAnalysis> {
-//  const systemPrompt = `You are a call center assistant. 
-// Analyze the call transcript and provide:
+// export async function analyzeCallTranscript(transcript: string): Promise<CallAnalysis> {
+// const systemPrompt = `You are a call center assistant.
+// Analyze the entire call transcript carefully, including the ending, and provide:
 
-// 1. A brief summary (2-4 sentences).
+// 1. A brief summary (2–4 sentences), including whether the user completed the conversation or ended the call early before providing required personal details like their full name or address.
+
 // 2. Determine the sentiment of the user based on the following strict rules:
 
-// - "positive" – If the user shows any sign of interest **and provides the requested personal information** (e.g. name, address, etc).
-// - "neutral" – If the user shows some interest (asks questions, stays on the call, shows curiosity) **but ends the call without providing any personal information** (like name, address, etc).
-// - "negative" – If the user is rude, disinterested, or clearly not interested throughout the call **and provides no useful information**.
+// - "positive" – If the user shows any sign of interest **AND provides their own personal information** (e.g. full name, address, etc).
+// - "neutral" – If the user shows some interest (asks questions, responds cooperatively, or stays on the call) **BUT hangs up or ends the call before giving any of their own personal information** (like full name, address, etc).
+// - "negative" – If the user is rude, disinterested, uncooperative, or ends the call quickly without sharing any useful info.
 
-// IMPORTANT: Return ONLY valid JSON without any markdown formatting or code blocks. Do not wrap your response in \`\`\`json or any other formatting.
+// Important notes:
+// - Providing pet information (name, weight, breed, etc.) is NOT enough for a "positive" sentiment.
+// - Be sure to note if the user **did not provide their full name or address** before the call ended.
+// - Be sure to consider the end of the transcript to detect if the user hung up or did not respond.
 
-// Return the response in this exact JSON format: 
+// Return ONLY valid JSON (no markdown or formatting).
+// Use this exact format:
 // { "summary": "<summary>", "sentiment": "<sentiment>" }`;
-const systemPrompt = `You are a call center assistant.
-Analyze the entire call transcript carefully, including the ending, and provide:
-
-1. A brief summary (2–4 sentences), including whether the user completed the conversation or ended the call early before providing required personal details like their full name or address.
-
-2. Determine the sentiment of the user based on the following strict rules:
-
-- "positive" – If the user shows any sign of interest **AND provides their own personal information** (e.g. full name, address, etc).
-- "neutral" – If the user shows some interest (asks questions, responds cooperatively, or stays on the call) **BUT hangs up or ends the call before giving any of their own personal information** (like full name, address, etc).
-- "negative" – If the user is rude, disinterested, uncooperative, or ends the call quickly without sharing any useful info.
-
-Important notes:
-- Providing pet information (name, weight, breed, etc.) is NOT enough for a "positive" sentiment.
-- Be sure to note if the user **did not provide their full name or address** before the call ended.
-- Be sure to consider the end of the transcript to detect if the user hung up or did not respond.
-
-Return ONLY valid JSON (no markdown or formatting).
-Use this exact format:
-{ "summary": "<summary>", "sentiment": "<sentiment>" }`;
 
 
 
-  try {
-    const response = await axios.post(
-      OPENAI_API_URL,
-      {
-        model: 'gpt-4o', // or 'gpt-3.5-turbo' if preferred
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: transcript }
-        ],
-        temperature: 0.3
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+//   try {
+//     const response = await axios.post(
+//       OPENAI_API_URL,
+//       {
+//         model: 'gpt-4o', // or 'gpt-3.5-turbo' if preferred
+//         messages: [
+//           { role: 'system', content: systemPrompt },
+//           { role: 'user', content: transcript }
+//         ],
+//         temperature: 0.3
+//       },
+//       {
+//         headers: {
+//           'Authorization': `Bearer ${OPENAI_API_KEY}`,
+//           'Content-Type': 'application/json'
+//         }
+//       }
+//     );
 
-    let content = response.data.choices[0].message.content;
+//     let content = response.data.choices[0].message.content;
     
-    // Clean up the response by removing markdown code blocks if present
-    content = content.trim();
+//     // Clean up the response by removing markdown code blocks if present
+//     content = content.trim();
     
-    // Remove ```json and ``` if present
-    if (content.startsWith('```json')) {
-      content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-    } else if (content.startsWith('```')) {
-      content = content.replace(/^```\s*/, '').replace(/\s*```$/, '');
-    }
+//     // Remove ```json and ``` if present
+//     if (content.startsWith('```json')) {
+//       content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+//     } else if (content.startsWith('```')) {
+//       content = content.replace(/^```\s*/, '').replace(/\s*```$/, '');
+//     }
     
-    // Remove any leading/trailing whitespace
-    content = content.trim();
+//     // Remove any leading/trailing whitespace
+//     content = content.trim();
 
-    console.log('Cleaned content for parsing:', content);
+//     console.log('Cleaned content for parsing:', content);
 
-    // Attempt to parse the model's JSON output
-    const parsed: CallAnalysis = JSON.parse(content);
+//     // Attempt to parse the model's JSON output
+//     const parsed: CallAnalysis = JSON.parse(content);
 
-    // Validate the parsed result
-    if (!parsed.summary || !parsed.sentiment) {
-      throw new Error('Invalid response format from OpenAI');
-    }
+//     // Validate the parsed result
+//     if (!parsed.summary || !parsed.sentiment) {
+//       throw new Error('Invalid response format from OpenAI');
+//     }
 
-    // // Ensure sentiment is one of the expected values
-    // if (!['positive', 'negative', 'neutral'].includes(parsed.sentiment)) {
-    //   console.warn(`Unexpected sentiment value: ${parsed.sentiment}, defaulting to neutral`);
-    //   parsed.sentiment = 'neutral';
-    // }
+//     // // Ensure sentiment is one of the expected values
+//     // if (!['positive', 'negative', 'neutral'].includes(parsed.sentiment)) {
+//     //   console.warn(`Unexpected sentiment value: ${parsed.sentiment}, defaulting to neutral`);
+//     //   parsed.sentiment = 'neutral';
+//     // }
 
-    return parsed;
-  } catch (error: any) {
-    console.error('Error analyzing transcript:', error?.response?.data || error.message);
-    console.error('Raw OpenAI response:', error?.response?.data?.choices?.[0]?.message?.content);
+//     return parsed;
+//   } catch (error: any) {
+//     console.error('Error analyzing transcript:', error?.response?.data || error.message);
+//     console.error('Raw OpenAI response:', error?.response?.data?.choices?.[0]?.message?.content);
     
-    // Return a fallback response instead of throwing
-    return {
-      summary: "Unable to analyze call transcript due to parsing error.",
-      sentiment: 'neutral'
-    };
-  }
-}
+//     // Return a fallback response instead of throwing
+//     return {
+//       summary: "Unable to analyze call transcript due to parsing error.",
+//       sentiment: 'neutral'
+//     };
+//   }
+// }
 
 
 app.post("/retell-webhook", async (req, res) => {
@@ -533,14 +521,6 @@ app.post("/retell-webhook", async (req, res) => {
     // console.log("📄 Call Data:", call);
     const callId = call?.call_id;
     const toNumber = call?.to_number;
-
-  //   analyzeCallTranscript(transcript)
-  // .then(result => {
-  //   console.log('Call Summary:', result.summary);
-  //   console.log('Sentiment:', result.sentiment);
-  // })
-  // .catch(console.error);
-
 
     if (event === "call_started") {
       console.log("📱 CALL STARTED EVENT DETECTED!");
@@ -575,20 +555,7 @@ app.post("/retell-webhook", async (req, res) => {
       const toNumber = call?.to_number;
       const startTime = call?.start_timestamp;
       const endTime = call?.end_timestamp;
-          const transcript = webhookData.call?.transcript;
-
-      
-
-
-      
-  //     analyzeCallTranscript(transcript)
-  // .then(result => {
-  //   senti = result.sentiment;
-  //   summary = result.summary;
-  //   console.log('Call Summary:', result.summary);
-  //   console.log('Sentiment:', result.sentiment);
-  // })
-  // .catch(console.error);
+      const transcript = webhookData.call?.transcript;
 
       // Stop live tracking and get final duration
       const liveTrackedDuration = stopLiveDurationTracking(callId);
@@ -639,16 +606,36 @@ app.post("/retell-webhook", async (req, res) => {
 
       let senti = "";
       let summary = "";
-          const result = await analyzeCallTranscript(transcript);
-          senti = result.sentiment;
-          summary = result.summary;
-          console.log('Call Summary:', summary);
-          console.log('Sentiment:', senti);
+      
+      // Get AI number from the call data
+      const aiNumber = call?.to_number; // or wherever the AI number is stored in the call data
+      console.log(`🤖 AI Number: ${aiNumber}`);
+      
+      // Fetch custom prompt from users collection based on ai_number
+      let customPrompt = null;
+      try {
+        const usersCollection = await getCollection("users");
+        const userDocument = await usersCollection.findOne({ ai_number: aiNumber });
+        
+        if (userDocument && userDocument.prompt) {
+          customPrompt = userDocument.prompt;
+          console.log("✅ Custom prompt found for AI number:", aiNumber);
+        } else {
+          console.log("⚠️ No custom prompt found for AI number:", aiNumber, "- using default prompt");
+        }
+      } catch (error) {
+        console.error("💥 Error fetching custom prompt:", error);
+        console.log("⚠️ Falling back to default prompt");
+      }
+
+      const result = await analyzeCallTranscript(transcript, customPrompt);
+      senti = result.sentiment;
+      summary = result.summary;
+      console.log('Call Summary:', summary);
+      console.log('Sentiment:', senti);
 
       const callSummary = summary || "No summary";
-      // const callSummary = call?.call_analysis?.call_summary || "No summary";
       const userSentiment = senti || "Unknown";
-      // const userSentiment = call?.call_analysis?.user_sentiment || "Unknown";
       const toNumber = call?.to_number || "Unknown";
       const callId = call?.call_id;
       
@@ -727,6 +714,340 @@ app.post("/retell-webhook", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+// Updated analyzeCallTranscript function to accept custom prompt
+// export async function analyzeCallTranscript(transcript: string, customPrompt?: string): Promise<CallAnalysis> {
+//   // Use custom prompt if provided, otherwise use default
+//   const systemPrompt = customPrompt;
+//   console.log("📄 System Prompt:", systemPrompt);
+
+//   try {
+//     const response = await axios.post(
+//       OPENAI_API_URL,
+//       {
+//         model: 'gpt-4o', // or 'gpt-3.5-turbo' if preferred
+//         messages: [
+//           { role: 'system', content: systemPrompt },
+//           { role: 'user', content: transcript }
+//         ],
+//         temperature: 0.3
+//       },
+//       {
+//         headers: {
+//           'Authorization': `Bearer ${OPENAI_API_KEY}`,
+//           'Content-Type': 'application/json'
+//         }
+//       }
+//     );
+
+//     let content = response.data.choices[0].message.content;
+    
+//     // Clean up the response by removing markdown code blocks if present
+//     content = content.trim();
+    
+//     // Remove ```json and ``` if present
+//     if (content.startsWith('```json')) {
+//       content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+//     } else if (content.startsWith('```')) {
+//       content = content.replace(/^```\s*/, '').replace(/\s*```$/, '');
+//     }
+    
+//     // Remove any leading/trailing whitespace
+//     content = content.trim();
+
+//     console.log('Cleaned content for parsing:', content);
+
+//     // Attempt to parse the model's JSON output
+//     const parsed: CallAnalysis = JSON.parse(content);
+
+//     // Validate the parsed result
+//     if (!parsed.summary || !parsed.sentiment) {
+//       throw new Error('Invalid response format from OpenAI');
+//     }
+
+//     return parsed;
+//   } catch (error: any) {
+//     console.error('Error analyzing transcript:', error?.response?.data || error.message);
+//     console.error('Raw OpenAI response:', error?.response?.data?.choices?.[0]?.message?.content);
+    
+//     // Return a fallback response instead of throwing
+//     return {
+//       summary: "Unable to analyze call transcript due to parsing error.",
+//       sentiment: 'neutral'
+//     };
+//   }
+// }
+export async function analyzeCallTranscript(transcript: string, customPrompt?: string): Promise<CallAnalysis> {
+  let systemPrompt = customPrompt;
+  
+  // If no custom prompt provided, fetch default prompt from database
+  if (!systemPrompt) {
+    try {
+      const defaultPromptCollection = await getCollection('defaultprompt');
+      const defaultPromptDoc = await defaultPromptCollection.findOne({ title: "AI" });
+
+      // Assuming you're using MongoDB with a connection/model setup
+      // Replace this with your actual database query method      
+      if (defaultPromptDoc && defaultPromptDoc.prompt) {
+        systemPrompt = defaultPromptDoc.prompt;
+        console.log("📄 Using default prompt from database",systemPrompt);
+      } else {
+        throw new Error("Default prompt not found in database");
+      }
+    } catch (dbError) {
+      console.error('Error fetching default prompt:', dbError);
+      
+      // Fallback prompt if database fetch fails
+    }
+  }
+  
+  console.log("📄 System Prompt:", systemPrompt);
+
+  try {
+    const response = await axios.post(
+      OPENAI_API_URL,
+      {
+        model: 'gpt-4o', // or 'gpt-3.5-turbo' if preferred
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: transcript }
+        ],
+        temperature: 0.3
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    let content = response.data.choices[0].message.content;
+    
+    // Clean up the response by removing markdown code blocks if present
+    content = content.trim();
+    
+    // Remove ```json and ``` if present
+    if (content.startsWith('```json')) {
+      content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+    } else if (content.startsWith('```')) {
+      content = content.replace(/^```\s*/, '').replace(/\s*```$/, '');
+    }
+    
+    // Remove any leading/trailing whitespace
+    content = content.trim();
+
+    console.log('Cleaned content for parsing:', content);
+
+    // Attempt to parse the model's JSON output
+    const parsed: CallAnalysis = JSON.parse(content);
+
+    // Validate the parsed result
+    if (!parsed.summary || !parsed.sentiment) {
+      throw new Error('Invalid response format from OpenAI');
+    }
+
+    return parsed;
+  } catch (error: any) {
+    console.error('Error analyzing transcript:', error?.response?.data || error.message);
+    console.error('Raw OpenAI response:', error?.response?.data?.choices?.[0]?.message?.content);
+    
+    // Return a fallback response instead of throwing
+    return {
+      summary: "Unable to analyze call transcript due to parsing error.",
+      sentiment: 'neutral'
+    };
+  }
+}
+
+// app.post("/retell-webhook", async (req, res) => {
+//   console.log("🔔 RETELL AI WEBHOOK ENDPOINT HIT!");
+//   console.log("⏰ Timestamp:", new Date().toISOString());
+
+//   try {
+//     const webhookData = req.body;
+//     // console.log("📄 Webhook Data:", webhookData);
+//     const transcript = webhookData.call?.transcript;
+//     // console.log("📄 Transcript:", transcript);
+//     const event = webhookData.event;
+//     const call = webhookData.call;
+//     // console.log("📄 Call Data:", call);
+//     const callId = call?.call_id;
+//     const toNumber = call?.to_number;
+
+
+//     if (event === "call_started") {
+//       console.log("📱 CALL STARTED EVENT DETECTED!");
+//       console.log(`🔔 Call ID: ${callId}`);
+//       console.log(`📞 To Number: ${toNumber}`);
+      
+//       // Start live duration tracking
+//       if (callId && toNumber) {
+//         startLiveDurationTracking(callId, toNumber);
+        
+//         // Store call start info in database
+//         try {
+//           const liveCallsCollection = await getCollection("live_calls");
+//           await liveCallsCollection.insertOne({
+//             call_id: callId,
+//             to_number: toNumber,
+//             start_time: new Date(),
+//             current_duration_seconds: 0,
+//             status: 'active',
+//             last_updated: new Date()
+//           });
+//         } catch (error) {
+//           console.error("💥 Error storing call start info:", error);
+//         }
+//       }
+
+//     } else if (event === "call_ended") {
+//       console.log("📞 CALL ENDED EVENT DETECTED!");
+      
+//       // Extract call duration information
+//       const callId = call?.call_id;
+//       const toNumber = call?.to_number;
+//       const startTime = call?.start_timestamp;
+//       const endTime = call?.end_timestamp;
+//           const transcript = webhookData.call?.transcript;
+
+//       // Stop live tracking and get final duration
+//       const liveTrackedDuration = stopLiveDurationTracking(callId);
+      
+//       let callDurationSeconds = 0;
+//       let callDurationMinutes = 0;
+      
+//       if (startTime && endTime) {
+//         const duration = new Date(endTime).getTime() - new Date(startTime).getTime();
+//         callDurationSeconds = Math.round(duration / 1000);
+//         callDurationMinutes = Math.round(callDurationSeconds / 60);
+//       } else if (liveTrackedDuration > 0) {
+//         callDurationSeconds = liveTrackedDuration;
+//         callDurationMinutes = Math.round(callDurationSeconds / 60);
+//       }
+      
+//       console.log(`⏱️ Final Call Duration: ${callDurationSeconds} seconds (${callDurationMinutes} minutes)`);
+      
+//       // Store call duration in database and mark as ended
+//       await updateCallMinutes(toNumber, callDurationSeconds, callId);
+      
+//       // Final deduction of any remaining seconds that weren't deducted during live tracking
+//       const remainingSeconds = callDurationSeconds % 10;
+//       if (remainingSeconds > 0) {
+//         await deductSecondsFromPlan(toNumber, remainingSeconds);
+//       }
+      
+//       // Update live_calls collection to mark as ended
+//       try {
+//         const liveCallsCollection = await getCollection("live_calls");
+//         await liveCallsCollection.findOneAndUpdate(
+//           { call_id: callId },
+//           { 
+//             $set: {
+//               status: 'ended',
+//               final_duration_seconds: callDurationSeconds,
+//               final_duration_minutes: callDurationMinutes,
+//               end_time: new Date()
+//             }
+//           }
+//         );
+//       } catch (error) {
+//         console.error("💥 Error updating call end info:", error);
+//       }
+
+//     } else if (event === "call_analyzed") {
+//       console.log("📊 CALL ANALYZED EVENT DETECTED!");
+
+//       let senti = "";
+//       let summary = "";
+//           const result = await analyzeCallTranscript(transcript);
+//           senti = result.sentiment;
+//           summary = result.summary;
+//           console.log('Call Summary:', summary);
+//           console.log('Sentiment:', senti);
+
+//       const callSummary = summary || "No summary";
+//       // const callSummary = call?.call_analysis?.call_summary || "No summary";
+//       const userSentiment = senti || "Unknown";
+//       // const userSentiment = call?.call_analysis?.user_sentiment || "Unknown";
+//       const toNumber = call?.to_number || "Unknown";
+//       const callId = call?.call_id;
+      
+//       let callDurationSeconds = 0;
+//       let callDurationMinutes = 0;
+      
+//       try {
+//         // First, try to get duration from the calls collection (most reliable)
+//         const callsCollection = await getCollection("calls");
+//         const existingCall = await callsCollection.findOne({ call_id: callId });
+        
+//         if (existingCall && existingCall.duration_seconds) {
+//           callDurationSeconds = existingCall.duration_seconds;
+//           callDurationMinutes = existingCall.duration_minutes || Math.round(callDurationSeconds / 60);
+//           console.log(`⏱️ Call Duration from DB: ${callDurationSeconds} seconds (${callDurationMinutes} minutes)`);
+//         } else {
+//           // Fallback: try to get from live_calls collection
+//           const liveCallsCollection = await getCollection("live_calls");
+//           const liveCall = await liveCallsCollection.findOne({ call_id: callId });
+          
+//           if (liveCall && liveCall.final_duration_seconds) {
+//             callDurationSeconds = liveCall.final_duration_seconds;
+//             callDurationMinutes = liveCall.final_duration_minutes || Math.round(callDurationSeconds / 60);
+//             console.log(`⏱️ Call Duration from live_calls: ${callDurationSeconds} seconds (${callDurationMinutes} minutes)`);
+//           } else {
+//             // Last resort: try timestamps (but this seems unreliable)
+//             const startTime = call?.start_timestamp;
+//             const endTime = call?.end_timestamp;
+            
+//             if (startTime && endTime) {
+//               const duration = new Date(endTime).getTime() - new Date(startTime).getTime();
+//               callDurationSeconds = Math.round(duration / 1000);
+//               callDurationMinutes = Math.round(duration / (1000 * 60));
+//               console.log(`⏱️ Call Duration from timestamps: ${callDurationSeconds} seconds (${callDurationMinutes} minutes)`);
+//             } else {
+//               console.warn("⚠️ No duration found for call", callId);
+//             }
+//           }
+//         }
+//       } catch (error) {
+//         console.error("💥 Error getting call duration:", error);
+//       }
+
+//       console.log("📄 Call Summary:", callSummary);
+//       console.log("💬 User Sentiment:", userSentiment);
+//       console.log("📞 To Number:", toNumber);
+
+//       // Call your custom function with duration
+//       await sendNotify({ 
+//         callSummary, 
+//         userSentiment, 
+//         toNumber, 
+//         callDurationSeconds: callDurationSeconds,
+//         callId 
+//       });
+
+//     } else {
+//       console.log("ℹ️ Non-call-ended event received:", event);
+      
+//       // Handle other events but don't start tracking for them
+//       if (event !== "call_started") {
+//         const callId = call?.call_id;
+//         const activeCall = activeCalls.get(callId);
+//         if (activeCall) {
+//           const currentDurationSeconds = activeCall.currentDuration;
+//           const currentDurationMinutes = Math.floor(currentDurationSeconds / 60);
+//           console.log(`⏱️ Current call duration: ${currentDurationSeconds} seconds (${currentDurationMinutes} minutes)`);
+//         }
+//       }
+//     }
+
+//     res.status(200).json({ message: "Webhook received successfully" });
+//   } catch (error) {
+//     console.error("💥 ERROR processing Retell AI webhook:", error);
+//     console.error("Stack trace:", (error as Error).stack);
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// });
 
 
 // API endpoint to get live call duration (now includes plan balance info)
@@ -1227,69 +1548,21 @@ app.get('/block', getBlocks);         // Get all VIP phones
 app.delete('/block/phone/:phone', deleteBlock);
 app.delete('/block/email/:email', deleteBlock);
 
+app.post("/defaultprompt", createOrUpdateDefaultPrompt);
+app.post("/globalprompt", createOrUpdateGlobalPrompt);
+app.get("/getdefaultprompt", getAllDefaultPrompts);
+app.get("/getglobalprompt", getAllglobalPrompts);
+app.post("/userPrompt", addOrUpdateUserPrompt);
+
+
+
+
+
 import { ObjectId } from 'mongodb';
 import moment from 'moment-timezone';
 
 
-// app.post('/get-call-balance', async (req: Request, res: Response) : Promise<void> => {
-//   const { userId } = req.body;
 
-//   if (!userId) {
-//      res.status(400).json({ success: false, message: 'userId is required' });
-//   }
-
-//   try {
-//     const usersCollection = await getCollection('users');
-//     const aiPlansCollection = await getCollection('ai_plans');
-
-//     const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
-
-//     if (!user) {
-//        res.status(404).json({ success: false, message: 'User not found' });
-//        return;
-//     }
-
-//     // Get time using user's timezone (default to UTC if not found)
-//     const timeZone = user.timeZone || 'UTC';
-//     const userTime = moment().tz(timeZone).format('YYYY-MM-DD HH:mm:ss');
-
-//     // Check if the user is "free" based on a type field or by inferring it
-//     if (user.type === 'free') {
-//        res.json({
-//         success: true,
-//         time: userTime,
-//         call_balance: 'unlimited'
-//       });
-//       return;
-//     }
-
-//     // If not free, check AI plan
-//     const aiPlan = await aiPlansCollection.findOne({ user_id: new ObjectId(userId) });
-
-//     if (!aiPlan || !aiPlan.plan_detail || typeof aiPlan.plan_detail.call_limit !== 'number') {
-//        res.status(404).json({
-//         success: false,
-//         message: 'AI Plan or call limit not found for this user'
-//       });
-//       return;
-//     }
-
-//     const callLimit = aiPlan.plan_detail.call_limit;
-
-//     const call_balance =
-//       callLimit === -5400 ? 'no balance left' : callLimit > -5400 ? 'okay' : 'invalid';
-
-//      res.json({
-//       success: true,
-//       time: userTime,
-//       call_balance
-//     });
-
-//   } catch (error) {
-//     console.error('Error in /get-call-balance:', error);
-//      res.status(500).json({ success: false, message: 'Internal server error' });
-//   }
-// });
 app.get('/get-call-balance', async (req: Request, res: Response): Promise<void> => {
   const userId = req.query.userId as string;
 
