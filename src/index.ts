@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import {startPlanExpiryJob} from "./cron/plan.cron";
 import { createOrUpdateDefaultPrompt, getAllDefaultPrompts, getAllglobalPrompts, addOrUpdateUserPrompt,createOrUpdateGlobalPrompt } from "./controller/prompt.controller";
+import { startPromptSyncCronJob, triggerPromptSyncManually } from './cron/prompt.cron';
 
 // Type definitions for Retell AI webhook
 interface RetellCallData {
@@ -2357,6 +2358,7 @@ startAppleReceiptVerificationJob();
   stopAppleReceiptVerificationJob();
   runAppleReceiptVerificationJobNow();
   checkAndVerifyAppleReceipts();
+  startPromptSyncCronJob();
   // verifySpecificPlanReceipt();
 
 // Handle graceful shutdown
