@@ -262,35 +262,36 @@ export async function verifyOTPhandler(
           timeZone,
           schedule
         );
-        (async () => {
-          let type: string;
-          let phone: string;
-          if (existingUser?.socialType) {
-            type = existingUser.socialType;
-            phone = "";
-          } else {
-            phone = existingUser?.phone;
-            type = "";
-          }
-          const html = buildNewUserHtml({
-            signUpMethod: type,
-            phone: phone,
-            createdAt: new Date(),
-            name: existingUser?.user?.name,
-            email: existingUser?.user?.email,
-          });
+        // varun
+        // (async () => {
+        //   let type: string;
+        //   let phone: string;
+        //   if (existingUser?.socialType) {
+        //     type = existingUser.socialType;
+        //     phone = "";
+        //   } else {
+        //     phone = existingUser?.phone;
+        //     type = "";
+        //   }
+        //   const html = buildNewUserHtml({
+        //     signUpMethod: type,
+        //     phone: phone,
+        //     createdAt: new Date(),
+        //     name: existingUser?.user?.name,
+        //     email: existingUser?.user?.email,
+        //   });
 
-          await sendAdminNotification({
-            subject: `New signup: ${type} - ${
-              existingUser?.user?.email || existingUser?.user?.name || ""
-            }`,
-            text: `New signup: ${existingUser?.socialType}, email: ${
-              existingUser?.user?.email || "N/A"
-            }, phone: ${existingUser?.user?.phone || "N/A"}`,
-            html,
-            to: process.env.ADMIN_EMAIL!,
-          });
-        })();
+        //   await sendAdminNotification({
+        //     subject: `New signup: ${type} - ${
+        //       existingUser?.user?.email || existingUser?.user?.name || ""
+        //     }`,
+        //     text: `New signup: ${existingUser?.socialType}, email: ${
+        //       existingUser?.user?.email || "N/A"
+        //     }, phone: ${existingUser?.user?.phone || "N/A"}`,
+        //     html,
+        //     to: process.env.ADMIN_EMAIL!,
+        //   });
+        // })();
 
         res.status(200).json({
           success: true,

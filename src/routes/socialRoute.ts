@@ -210,32 +210,37 @@ export const socialRegisterHandler = async (req: Request, res: Response) => {
   };
 
   const result = await usersCollection.insertOne(newUser);
+  // varun
   (async () => {
     try {
       let type: string;
       let phone: string;
       if (socialType) {
         type = socialType;
-        phone = "";
+        phone = "(---)";
       } else {
         type = "Phone";
       }
 
       const html = buildNewUserHtml({
-        signUpMethod: type,
-        socialType: socialType,
         name: user?.name,
         email: user?.email,
-        phone: newUser?.phone || phone!,
-        createdAt: newUser?.createdAt,
+        phone: newUser?.phone ? newUser?.phone : phone!, // if not found then  (---)
+        // aiNumber: usersCollection?.ai_number!, // -  +1-78945123
+        // date: formattedDate, // - 28 oct 2025
+        createdAt: newUser?.createdAt, // 05:30:00 UTC
+        signUpMethod: type,
+        socialType: socialType, //Google / Apple
+        status: isBlocked ? "Block" : "Active", // - Active
       });
+
       await sendAdminNotification({
-        subject: `New signup: ${type} - ${user?.email || user?.name || ""}`,
-        html,
+        // subject: `New signup: ${type} - ${user?.email || user?.name || ""}`,
         to: process.env.ADMIN_EMAIL!,
-        text: `New signup: ${socialType}, email: ${
-          user?.email || "N/A"
-        }, phone: ${user?.phone || "N/A"}`,
+        // text: `New signup: ${socialType}, email: ${
+        //   user?.email || "N/A"
+        // }, phone: ${user?.phone || "N/A"}`,
+        html,
       });
       console.log("Admin email sent for social signup", result.insertedId);
     } catch (error) {
