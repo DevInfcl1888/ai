@@ -217,7 +217,7 @@ export const socialRegisterHandler = async (req: Request, res: Response) => {
       let phone: string;
       if (socialType) {
         type = socialType;
-        phone = "(---)";
+        phone = " ";
       } else {
         type = "Phone";
       }
@@ -231,11 +231,17 @@ export const socialRegisterHandler = async (req: Request, res: Response) => {
         createdAt: newUser?.createdAt, // 05:30:00 UTC
         signUpMethod: type,
         socialType: socialType, //Google / Apple
-        status: isBlocked ? "Block" : "Active", // - Active
+        status: isBlocked === true ? "Block" : "Active",
       });
 
       await sendAdminNotification({
-        // subject: `New signup: ${type} - ${user?.email || user?.name || ""}`,
+        subject: `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #222;">
+    <h2 style="color: #2c3e50; margin-bottom: 10px;">
+      Welcome to <strong>AI Secretary</strong> - New User Registered via (${
+        type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()
+      })
+    </h2></div>`,
+
         to: process.env.ADMIN_EMAIL!,
         // text: `New signup: ${socialType}, email: ${
         //   user?.email || "N/A"

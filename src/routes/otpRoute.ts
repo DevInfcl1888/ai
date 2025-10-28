@@ -263,35 +263,56 @@ export async function verifyOTPhandler(
           schedule
         );
         // varun
-        // (async () => {
-        //   let type: string;
-        //   let phone: string;
-        //   if (existingUser?.socialType) {
-        //     type = existingUser.socialType;
-        //     phone = "";
-        //   } else {
-        //     phone = existingUser?.phone;
-        //     type = "";
-        //   }
-        //   const html = buildNewUserHtml({
-        //     signUpMethod: type,
-        //     phone: phone,
-        //     createdAt: new Date(),
-        //     name: existingUser?.user?.name,
-        //     email: existingUser?.user?.email,
-        //   });
+        (async () => {
+          let type: string;
+          let phone: string;
+          if (existingUser?.socialType) {
+            type = existingUser.socialType;
+            phone = " ";
+          } else {
+            type = "Phone";
+          }
+          const html = buildNewUserHtml({
+            //   signUpMethod: type,
+            //   phone: phone,
+            //   createdAt: new Date(),
+            //   name: existingUser?.user?.name,
+            //   email: existingUser?.user?.email,
+            // });
 
-        //   await sendAdminNotification({
-        //     subject: `New signup: ${type} - ${
-        //       existingUser?.user?.email || existingUser?.user?.name || ""
-        //     }`,
-        //     text: `New signup: ${existingUser?.socialType}, email: ${
-        //       existingUser?.user?.email || "N/A"
-        //     }, phone: ${existingUser?.user?.phone || "N/A"}`,
-        //     html,
-        //     to: process.env.ADMIN_EMAIL!,
-        //   });
-        // })();
+            name: existingUser?.name,
+            email: existingUser?.email,
+            phone: existingUser?.phone ? existingUser?.phone : phone!, // if not found then  (---)
+            // aiNumber: usersCollection?.ai_number!, // -  +1-78945123
+            // date: formattedDate, // - 28 oct 2025
+            createdAt: existingUser?.createdAt, // 05:30:00 UTC
+            signUpMethod: type,
+            socialType: type, //Google / Apple
+            status: isBlocked === true ? "Block" : "Active",
+          });
+          await sendAdminNotification({
+            subject: `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #222;">
+    <h2 style="color: #2c3e50; margin-bottom: 10px;">
+      Welcome to <strong>AI Secretary</strong> - New User Registered via (${
+        type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()
+      })
+    </h2></div>`,
+            to: process.env.ADMIN_EMAIL!,
+            html,
+            // to: process.env.ADMIN_EMAIL!,
+            // text: `New signup: ${socialType}, email: ${
+            //   user?.email || "N/A"
+            // }, phone: ${user?.phone || "N/A"}`,
+            // html,
+
+            // subject: `New signup: ${type} - ${
+            //   existingUser?.user?.email || existingUser?.user?.name || ""
+            // }`,
+            // text: `New signup: ${existingUser?.socialType}, email: ${
+            //   existingUser?.user?.email || "N/A"
+            // }, phone: ${existingUser?.user?.phone || "N/A"}`,
+          });
+        })();
 
         res.status(200).json({
           success: true,
