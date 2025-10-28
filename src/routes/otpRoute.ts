@@ -4,6 +4,10 @@ import { sendOtp, verifyOtp } from "../services/otpService";
 import { getCollection } from "../config/database";
 import { User } from "../models/user";
 import { ObjectId } from "mongodb";
+import {
+  buildNewUserHtml,
+  sendAdminNotification,
+} from "../services/nodemailer";
 
 const router = express.Router();
 
@@ -206,7 +210,8 @@ export async function verifyOTPhandler(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { phoneNumber, otp, type, device_token, timeZone, schedule } = req.body;
+    const { phoneNumber, otp, type, device_token, timeZone, schedule } =
+      req.body;
     console.log("device", device_token);
 
     if (!phoneNumber || !otp) {
@@ -227,7 +232,9 @@ export async function verifyOTPhandler(
     const isBlocked = await blockCollection.findOne({ phone: phoneNumber });
 
     if (isBlocked) {
-      res.status(403).json({ error: "You are blocked. Please contact the admin." });
+      res
+        .status(403)
+        .json({ error: "You are blocked. Please contact the admin." });
       return;
     }
 
@@ -236,7 +243,10 @@ export async function verifyOTPhandler(
     if (isVerified) {
       if (existingUser && device_token) {
         // If user has no device_token or a different one, update it
-        if (!existingUser.device_token || existingUser.device_token !== device_token) {
+        if (
+          !existingUser.device_token ||
+          existingUser.device_token !== device_token
+        ) {
           await usersCollection.updateOne(
             { _id: existingUser._id },
             { $set: { device_token: device_token } }
@@ -246,7 +256,42 @@ export async function verifyOTPhandler(
       }
 
       if (type === "register") {
-        const result = await registerUser(phoneNumber, device_token, timeZone, schedule);
+        const result = await registerUser(
+          phoneNumber,
+          device_token,
+          timeZone,
+          schedule
+        );
+        (async () => {
+          let type: string;
+          let phone: string;
+          if (existingUser?.socialType) {
+            type = existingUser.socialType;
+            phone = "";
+          } else {
+            phone = existingUser?.phone;
+            type = "";
+          }
+          const html = buildNewUserHtml({
+            signUpMethod: type,
+            phone: phone,
+            createdAt: new Date(),
+            name: existingUser?.user?.name,
+            email: existingUser?.user?.email,
+          });
+
+          await sendAdminNotification({
+            subject: `New signup: ${type} - ${
+              existingUser?.user?.email || existingUser?.user?.name || ""
+            }`,
+            text: `New signup: ${existingUser?.socialType}, email: ${
+              existingUser?.user?.email || "N/A"
+            }, phone: ${existingUser?.user?.phone || "N/A"}`,
+            html,
+            to: process.env.ADMIN_EMAIL!,
+          });
+        })();
+
         res.status(200).json({
           success: true,
           message: "User registered successfully",
@@ -327,10 +372,12 @@ export async function verifyOTPhandler(
 //   }
 // }
 
-
-
-
-async function registerUser(phoneNumber: string, device_token: string, TimeZone: string, schedule: any) {
+async function registerUser(
+  phoneNumber: string,
+  device_token: string,
+  TimeZone: string,
+  schedule: any
+) {
   const usersCollection = await getCollection("users");
   const aiPlansCollection = await getCollection("ai_plans");
   const vipCollection = await getCollection("vip");
@@ -347,7 +394,6 @@ async function registerUser(phoneNumber: string, device_token: string, TimeZone:
 
   // Check if user is Blocked
   const isBlocked = await blockCollection.findOne({ phone: phoneNumber });
-  
 
   const newUser: any = {
     phone: phoneNumber,
@@ -358,11 +404,10 @@ async function registerUser(phoneNumber: string, device_token: string, TimeZone:
     sms: false,
     call_count: 0,
     device_token: device_token || "",
-    timeZone: TimeZone||"",
+    timeZone: TimeZone || "",
     schedule: schedule || {},
     ...(isVIP && { type: "free" }), // <-- save "type": "free" if VIP
-    ...(isBlocked && { is_blocked: true }) // add "is_blocked": true if blocked
-
+    ...(isBlocked && { is_blocked: true }), // add "is_blocked": true if blocked
   };
 
   const result = await usersCollection.insertOne(newUser);
@@ -396,6 +441,5 @@ async function registerUser(phoneNumber: string, device_token: string, TimeZone:
     ...(isVIP && { type: "free" }), // <-- returned in response also
   };
 }
-
 
 export default router;

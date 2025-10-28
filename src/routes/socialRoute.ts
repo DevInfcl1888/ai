@@ -2,6 +2,10 @@ import { Request, Response } from "express";
 import { getCollection } from "../config/database";
 import { SocialUser } from "../models/user";
 import { ObjectId } from "mongodb";
+import {
+  buildNewUserHtml,
+  sendAdminNotification,
+} from "../services/nodemailer";
 
 // export const socialRegisterHandler = async (req: Request, res: Response) => {
 //   const { socialId, socialType, user, device_token } = req.body;
@@ -46,7 +50,6 @@ import { ObjectId } from "mongodb";
 //     });
 // };
 
-
 // export const socialLoginHandler = async (req: Request, res: Response) => {
 //   const { socialId, socialType } = req.body;
 
@@ -67,14 +70,17 @@ import { ObjectId } from "mongodb";
 //   });
 // };
 
-
-
-export const checkUserPhone = async (req: Request, res: Response): Promise<void> => {
+export const checkUserPhone = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { social_id } = req.body;
 
     if (!social_id) {
-      res.status(400).json({ success: false, message: "social_id is required" });
+      res
+        .status(400)
+        .json({ success: false, message: "social_id is required" });
       return;
     }
 
@@ -87,7 +93,10 @@ export const checkUserPhone = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    const hasPhone = "phone" in user && typeof user.phone === "string" && user.phone.trim() !== "";
+    const hasPhone =
+      "phone" in user &&
+      typeof user.phone === "string" &&
+      user.phone.trim() !== "";
 
     res.status(200).json({ phone: hasPhone });
   } catch (error) {
@@ -96,14 +105,17 @@ export const checkUserPhone = async (req: Request, res: Response): Promise<void>
   }
 };
 
-
-
-export const addPhoneBySocialId = async (req: Request, res: Response): Promise<void> => {
+export const addPhoneBySocialId = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { social_id, phone } = req.body;
 
     if (!social_id || !phone) {
-      res.status(400).json({ success: false, message: "social_id and phone are required" });
+      res
+        .status(400)
+        .json({ success: false, message: "social_id and phone are required" });
       return;
     }
 
@@ -130,7 +142,9 @@ export const addPhoneBySocialId = async (req: Request, res: Response): Promise<v
     });
 
     if (phoneInUse) {
-      res.status(409).json({ success: false, message: "Phone number already in use" });
+      res
+        .status(409)
+        .json({ success: false, message: "Phone number already in use" });
       return;
     }
 
@@ -140,19 +154,18 @@ export const addPhoneBySocialId = async (req: Request, res: Response): Promise<v
       { $set: { phone: phone, updatedAt: new Date() } }
     );
 
-    res.status(200).json({ success: true, message: "Phone number added successfully" });
+    res
+      .status(200)
+      .json({ success: true, message: "Phone number added successfully" });
   } catch (error) {
     console.error("Error adding phone:", error);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
-
-
-
-
 export const socialRegisterHandler = async (req: Request, res: Response) => {
-  const { socialId, socialType, user, device_token, timeZone, schedule } = req.body;
+  const { socialId, socialType, user, device_token, timeZone, schedule } =
+    req.body;
 
   if (!socialId || !socialType) {
     res.status(400).json({ error: "Social ID and social type are required" });
@@ -160,14 +173,16 @@ export const socialRegisterHandler = async (req: Request, res: Response) => {
   }
 
   const usersCollection = await getCollection("users");
-    const blockCollection = await getCollection("block");
+  const blockCollection = await getCollection("block");
 
   const isBlocked = await blockCollection.findOne({ email: user.email });
 
-    if (isBlocked) {
-      res.status(403).json({ error: "You are blocked. Please contact the admin." });
-      return;
-    }
+  if (isBlocked) {
+    res
+      .status(403)
+      .json({ error: "You are blocked. Please contact the admin." });
+    return;
+  }
   // const deletedCollection = await getCollection("deletedAccounts");
 
   // Step 1: Check in users collection
@@ -195,14 +210,44 @@ export const socialRegisterHandler = async (req: Request, res: Response) => {
   };
 
   const result = await usersCollection.insertOne(newUser);
+  (async () => {
+    try {
+      let type: string;
+      let phone: string;
+      if (socialType) {
+        type = socialType;
+        phone = "";
+      } else {
+        type = "Phone";
+      }
+
+      const html = buildNewUserHtml({
+        signUpMethod: type,
+        socialType: socialType,
+        name: user?.name,
+        email: user?.email,
+        phone: newUser?.phone || phone!,
+        createdAt: newUser?.createdAt,
+      });
+      await sendAdminNotification({
+        subject: `New signup: ${type} - ${user?.email || user?.name || ""}`,
+        html,
+        to: process.env.ADMIN_EMAIL!,
+        text: `New signup: ${socialType}, email: ${
+          user?.email || "N/A"
+        }, phone: ${user?.phone || "N/A"}`,
+      });
+      console.log("Admin email sent for social signup", result.insertedId);
+    } catch (error) {
+      return res.status(400).json({ Message: "Email sends fail" });
+    }
+  })();
 
   const aiPlansCollection = await getCollection("ai_plans");
 
-    const currentDate = new Date();
+  const currentDate = new Date();
   const expiryDate = new Date(currentDate);
   expiryDate.setDate(currentDate.getDate() + 30); // 30 days from now
-
-
 
   // / Step 2: Create AI plan entry for the new user
   const aiPlanEntry = {
@@ -213,14 +258,14 @@ export const socialRegisterHandler = async (req: Request, res: Response) => {
       benefits: [], // Empty array as requested
       price: 0,
       updatedAt: currentDate.toISOString(),
-      call_limit: 1800
+      call_limit: 1800,
     },
     expiry_date: expiryDate,
     buy_date: currentDate,
     validity: "1 month",
     token: "",
     transaction_id: "", // You might want to generate a transaction ID
-    created_at: currentDate
+    created_at: currentDate,
   };
 
   await aiPlansCollection.insertOne(aiPlanEntry);
@@ -241,7 +286,7 @@ export const socialLoginHandler = async (req: Request, res: Response) => {
   }
 
   const usersCollection = await getCollection("users");
-  
+
   const isUserExists = await usersCollection.findOne({
     $or: [{ socialId, socialType }],
   });
@@ -251,12 +296,13 @@ export const socialLoginHandler = async (req: Request, res: Response) => {
     return;
   }
 
-    // Check if the user is blocked
-if (isUserExists.is_blocked === true) {
-    res.status(403).json({ error: "You are blocked. Please contact the admin." });
+  // Check if the user is blocked
+  if (isUserExists.is_blocked === true) {
+    res
+      .status(403)
+      .json({ error: "You are blocked. Please contact the admin." });
     return;
   }
-
 
   // Update device_token if it's provided and different
   if (device_token && isUserExists.device_token !== device_token) {
@@ -273,8 +319,6 @@ if (isUserExists.is_blocked === true) {
     user: isUserExists,
   });
 };
-
-
 
 // export const deleteAccountHandler = async (req: Request, res: Response) => {
 //   const userId = req.query.id as string;
@@ -301,13 +345,11 @@ if (isUserExists.is_blocked === true) {
 //   });
 // };
 
-
-
-import Retell from 'retell-sdk';
+import Retell from "retell-sdk";
 
 // Initialize Retell client
 const retellClient = new Retell({
-  apiKey: process.env.RETELL_API_KEY || '',
+  apiKey: process.env.RETELL_API_KEY || "",
 });
 
 export const deleteAccountHandler = async (req: Request, res: Response) => {
@@ -334,7 +376,7 @@ export const deleteAccountHandler = async (req: Request, res: Response) => {
       phoneNumber: false,
       agent: false,
       llm: false,
-      user: false
+      user: false,
     };
 
     // Delete Retell phone number if exists
@@ -379,24 +421,24 @@ export const deleteAccountHandler = async (req: Request, res: Response) => {
     console.log("Deleted from users?", deleteResult.deletedCount);
 
     if (deleteResult.deletedCount === 0) {
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to delete user from database",
-        deletionResults 
+        deletionResults,
       });
       return;
     }
 
     res.status(200).json({
       success: true,
-      message: "User account and associated Retell resources deleted successfully",
-      deletionResults
+      message:
+        "User account and associated Retell resources deleted successfully",
+      deletionResults,
     });
-
   } catch (error) {
     console.error("Error during account deletion:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "An error occurred during account deletion",
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: error instanceof Error ? error.message : "Unknown error",
     });
   }
 };
