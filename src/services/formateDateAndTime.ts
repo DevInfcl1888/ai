@@ -1,5 +1,11 @@
 export const formatDateTime = (createdAt: Date) => {
-  const dateObj = new Date(createdAt);
+    const dateObj = createdAt ? new Date(createdAt) : new Date(); // ✅ fallback if undefined
+
+  if (isNaN(dateObj.getTime())) {
+    console.warn("⚠️ Invalid createdAt received in formatDateTime:", createdAt);
+    return { formattedDate: "Invalid Date", formattedTime: "--:--:--" };
+  }
+
   const formattedDate = dateObj.toLocaleDateString("en-GB", {
     day: "2-digit",
     month: "short",

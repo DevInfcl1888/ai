@@ -235,20 +235,13 @@ export const socialRegisterHandler = async (req: Request, res: Response) => {
       });
 
       await sendAdminNotification({
-        subject: `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #222;">
-    <h2 style="color: #2c3e50; margin-bottom: 10px;">
-      Welcome to <strong>AI Secretary</strong> - New User Registered via (${
-        type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()
-      })
-    </h2></div>`,
-
+        subject: `Welcome to AI Secretary - New User Registered via ${
+          type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()
+        }`,
         to: process.env.ADMIN_EMAIL!,
-        // text: `New signup: ${socialType}, email: ${
-        //   user?.email || "N/A"
-        // }, phone: ${user?.phone || "N/A"}`,
         html,
       });
-      console.log("Admin email sent for social signup", result.insertedId);
+      // console.log("Admin email sent for social signup", result.insertedId);
     } catch (error) {
       return res.status(400).json({ Message: "Email sends fail" });
     }
