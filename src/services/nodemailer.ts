@@ -14,7 +14,7 @@ transport.verify().catch((err) => {
 });
 
 export async function sendAdminNotification(payload: {
-  // subject: string;
+  subject: string;
   to: string; // default to admin panel
   text?: string;
   html: string;
@@ -24,7 +24,7 @@ export async function sendAdminNotification(payload: {
   const mailOptions = {
     from: process.env.FROM_EMAIL,
     to,
-    // subject: payload.subject,
+    subject: payload.subject,
     text: payload.text,
     html: payload.html,
   };
@@ -55,23 +55,23 @@ export function buildNewUserHtml(opts: {
 
   let html = `
   <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #222;">
-    <h2 style="color: #2c3e50; margin-bottom: 10px;">
-      Welcome to <strong>AI Secretary</strong> - New User Registered via (${signUpMethod.toUpperCase()})
-    </h2>
 
     <ul style="list-style: none; padding: 0;">
-      <li><strong>Name:</strong> ${(
-        name.toUpperCase() || "---"
-      ).toUpperCase()}</li>
-      <li><strong>Email:</strong> ${email || "(---)"}</li>
+      <li><strong>Name:</strong> ${
+        name.charAt(0).toUpperCase() + name.slice(1).toLowerCase() || " "
+      }</li>
+      <li><strong>Email:</strong> ${email || " "}</li>
       <li><strong>Phone No:</strong> ${phone ? phone : "(---)"}</li>
       <li><strong>AI Number:</strong> ${"(---)"}</li>
       <li><strong>Date:</strong> ${formattedDate}</li>
       <li><strong>Created At:</strong> ${formattedTime} UTC</li>
       <li><strong>Social Type:</strong> ${
-        socialType?.toUpperCase() || "(---)"
+        socialType?.charAt(0).toUpperCase() +
+          socialType?.slice(1).toLowerCase()! || " "
       }</li>
-      <li><strong>Status:</strong> ${status ? "Block" : "Active"}</li>
+      <li><strong>Status:</strong> ${
+        status === "Block" ? "Block" : "Active"
+      }</li>
     </ul>
   </div>
 `;
