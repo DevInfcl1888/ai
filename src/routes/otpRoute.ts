@@ -239,6 +239,7 @@ export async function verifyOTPhandler(
     }
 
     const existingUser = await usersCollection.findOne({ phone: phoneNumber });
+    console.log("existingUser?.socialType", existingUser);
 
     if (isVerified) {
       if (existingUser && device_token) {
@@ -262,57 +263,43 @@ export async function verifyOTPhandler(
           timeZone,
           schedule
         );
-        // // varun
-        // (async () => {
-        //   let type: string;
-        //   let phone: string;
-        //   if (existingUser?.socialType) {
-        //     type = existingUser.socialType;
-        //     phone = " ";
-        //   } else {
-        //     type = "Phone";
-        //   }
-    //       const html = buildNewUserHtml({
-    //         //   signUpMethod: type,
-    //         //   phone: phone,
-    //         //   createdAt: new Date(),
-    //         //   name: existingUser?.user?.name,
-    //         //   email: existingUser?.user?.email,
-    //         // });
+        console.log("result", result);
 
-    //         name: existingUser?.name,
-    //         email: existingUser?.email,
-    //         phone: existingUser?.phone ? existingUser?.phone : phone!, // if not found then  (---)
-    //         // aiNumber: usersCollection?.ai_number!, // -  +1-78945123
-    //         // date: formattedDate, // - 28 oct 2025
-    //         createdAt: existingUser?.createdAt, // 05:30:00 UTC
-    //         signUpMethod: type,
-    //         socialType: type, //Google / Apple
-    //         status: isBlocked === true ? "Block" : "Active",
-    //       });
-    //       await sendAdminNotification({
-    //         subject: `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #222;">
-    // <h2 style="color: #2c3e50; margin-bottom: 10px;">
-    //   Welcome to <strong>AI Secretary</strong> - New User Registered via (${
-    //     type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()
-    //   })
-    // </h2></div>`,
-    //         to: process.env.ADMIN_EMAIL!,
-    //         html,
-    //         // to: process.env.ADMIN_EMAIL!,
-    //         // text: `New signup: ${socialType}, email: ${
-    //         //   user?.email || "N/A"
-    //         // }, phone: ${user?.phone || "N/A"}`,
-    //         // html,
+        // varun
+        (async () => {
+          try {
+            let type: string;
+            let phone: string;
 
-    //         // subject: `New signup: ${type} - ${
-    //         //   existingUser?.user?.email || existingUser?.user?.name || ""
-    //         // }`,
-    //         // text: `New signup: ${existingUser?.socialType}, email: ${
-    //         //   existingUser?.user?.email || "N/A"
-    //         // }, phone: ${existingUser?.user?.phone || "N/A"}`,
-    //       });
-        // })();
+            if (result?.phone) {
+              type = result?.phone;
+              phone = " ";
+            } else {
+              type = "Phone";
+            }
+            const html = buildNewUserHtml({
+              name: existingUser?.name ? existingUser?.name : " ",
+              email: existingUser?.email ? existingUser?.email : " ",
+              phone: result?.phone ? result?.phone : " ", // if not found then  (---)
+              createdAt: existingUser?.createdAt ? existingUser?.createdAt : " ", // 05:30:00 UTC
+              signUpMethod: result?.phone ? "Phone" : " ",
+              socialType: result?.phone ? "Sign Up via phone no." : " ", //Google / Apple
+              status: isBlocked === true ? "Block" : "Active",
+            });
+            await sendAdminNotification({
+              subject: `Welcome to AI Secretary - New User Registered via ${
+                type
+                  ? type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()
+                  : "Phone"
+              }`,
+              to: process.env.ADMIN_EMAIL!,
+              html,
+            });
+          } catch (err) {
+            console.error("❌ Email send failed:", err);
+            return res.status(400).json({ Message: "Email sends fail" });
+          }
+        })();
 
         res.status(200).json({
           success: true,

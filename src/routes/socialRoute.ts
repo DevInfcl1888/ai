@@ -226,29 +226,20 @@ export const socialRegisterHandler = async (req: Request, res: Response) => {
         name: user?.name,
         email: user?.email,
         phone: newUser?.phone ? newUser?.phone : phone!, // if not found then  (---)
-        // aiNumber: usersCollection?.ai_number!, // -  +1-78945123
-        // date: formattedDate, // - 28 oct 2025
         createdAt: newUser?.createdAt, // 05:30:00 UTC
-        signUpMethod: type,
-        socialType: socialType, //Google / Apple
+        signUpMethod: type ? type : "",
+        socialType: socialType ? socialType : " ", //Google / Apple
         status: isBlocked === true ? "Block" : "Active",
       });
 
       await sendAdminNotification({
-        subject: `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #222;">
-    <h2 style="color: #2c3e50; margin-bottom: 10px;">
-      Welcome to <strong>AI Secretary</strong> - New User Registered via (${
-        type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()
-      })
-    </h2></div>`,
-
+        subject: `Welcome to AI Secretary - New User Registered via ${
+          type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()
+        }`,
         to: process.env.ADMIN_EMAIL!,
-        // text: `New signup: ${socialType}, email: ${
-        //   user?.email || "N/A"
-        // }, phone: ${user?.phone || "N/A"}`,
         html,
       });
-      console.log("Admin email sent for social signup", result.insertedId);
+      // console.log("Admin email sent for social signup", result.insertedId);
     } catch (error) {
       return res.status(400).json({ Message: "Email sends fail" });
     }
