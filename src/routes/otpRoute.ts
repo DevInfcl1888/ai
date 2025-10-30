@@ -281,7 +281,7 @@ export async function verifyOTPhandler(
               name: existingUser?.name ? existingUser?.name : " ",
               email: existingUser?.email ? existingUser?.email : " ",
               phone: result?.phone ? result?.phone : " ", // if not found then  (---)
-              createdAt: existingUser?.createdAt ? existingUser?.createdAt : " ", // 05:30:00 UTC
+              createdAt: result?.createdAt ? result?.createdAt : " ", // 05:30:00 UTC
               signUpMethod: result?.phone ? "Phone" : " ",
               socialType: result?.phone ? "Sign Up via phone no." : " ", //Google / Apple
               status: isBlocked === true ? "Block" : "Active",
