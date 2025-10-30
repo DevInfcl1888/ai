@@ -50,7 +50,10 @@ export function buildNewUserHtml(opts: {
     socialType,
     status, // is_blocked
   } = opts;
-  const { formattedDate, formattedTime } = formatDateTime(createdAt);
+  const createdAtSafe = (createdAt instanceof Date && !isNaN(createdAt.getTime()))
+    ? createdAt
+    : new Date();
+  const { formattedDate, formattedTime } = formatDateTime(createdAtSafe);
 
   const displayName =
     name?.trim() ? name.charAt(0).toUpperCase() + name.slice(1).toLowerCase() : " ";
