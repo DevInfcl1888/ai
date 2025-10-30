@@ -45,7 +45,6 @@ export function buildNewUserHtml(opts: {
     name,
     email,
     phone,
-    // aiNumber,
     createdAt,
     signUpMethod,
     socialType,
@@ -61,7 +60,7 @@ export function buildNewUserHtml(opts: {
         name.charAt(0).toUpperCase() + name?.slice(1).toLowerCase() || " "
       }</li>
       <li><strong>Email:</strong> ${email || " "}</li>
-      <li><strong>Phone No:</strong> ${phone ? phone : "(---)"}</li>
+      <li><strong>Phone No:</strong> ${phone ? phone : " "}</li>
       <li><strong>Date:</strong> ${formattedDate}</li>
       <li><strong>Created At:</strong> ${formattedTime} UTC</li>
       <li><strong>Social Type:</strong> ${

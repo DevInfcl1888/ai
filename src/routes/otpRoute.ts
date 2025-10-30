@@ -239,10 +239,7 @@ export async function verifyOTPhandler(
     }
 
     const existingUser = await usersCollection.findOne({ phone: phoneNumber });
-    console.log(
-      "❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️ existingUser?.socialType",
-      existingUser
-    );
+    console.log("existingUser?.socialType", existingUser);
 
     if (isVerified) {
       if (existingUser && device_token) {
@@ -266,7 +263,7 @@ export async function verifyOTPhandler(
           timeZone,
           schedule
         );
-        console.log("❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️ result", result);
+        console.log("result", result);
 
         // varun
         (async () => {
@@ -275,9 +272,6 @@ export async function verifyOTPhandler(
             let phone: string;
 
             if (result?.phone) {
-            // if (true) {
-              // type = "Phone";
-
               type = result?.phone;
               phone = " ";
             } else {
@@ -287,11 +281,9 @@ export async function verifyOTPhandler(
               name: existingUser?.name ? existingUser?.name : " ",
               email: existingUser?.email ? existingUser?.email : " ",
               phone: result?.phone ? result?.phone : " ", // if not found then  (---)
-              // aiNumber: usersCollection?.ai_number!, // -  +1-78945123
-              // date: formattedDate, // - 28 oct 2025
-              createdAt: existingUser?.createdAt, // 05:30:00 UTC
+              createdAt: existingUser?.createdAt ? existingUser?.createdAt : " ", // 05:30:00 UTC
               signUpMethod: result?.phone ? "Phone" : " ",
-              socialType: existingUser?.name ? existingUser?.name : " ", //Google / Apple
+              socialType: result?.phone ? "Sign Up via phone no." : " ", //Google / Apple
               status: isBlocked === true ? "Block" : "Active",
             });
             await sendAdminNotification({

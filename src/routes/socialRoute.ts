@@ -226,11 +226,9 @@ export const socialRegisterHandler = async (req: Request, res: Response) => {
         name: user?.name,
         email: user?.email,
         phone: newUser?.phone ? newUser?.phone : phone!, // if not found then  (---)
-        // aiNumber: usersCollection?.ai_number!, // -  +1-78945123
-        // date: formattedDate, // - 28 oct 2025
         createdAt: newUser?.createdAt, // 05:30:00 UTC
-        signUpMethod: type,
-        socialType: socialType, //Google / Apple
+        signUpMethod: type ? type : "",
+        socialType: socialType ? socialType : " ", //Google / Apple
         status: isBlocked === true ? "Block" : "Active",
       });
 
