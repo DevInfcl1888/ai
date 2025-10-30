@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
-import {startPlanExpiryJob} from "./cron/plan.cron";
-import { createOrUpdateDefaultPrompt, getAllDefaultPrompts, getAllglobalPrompts, addOrUpdateUserPrompt,createOrUpdateGlobalPrompt } from "./controller/prompt.controller";
+import { startPlanExpiryJob } from "./cron/plan.cron";
+import { createOrUpdateDefaultPrompt, getAllDefaultPrompts, getAllglobalPrompts, addOrUpdateUserPrompt, createOrUpdateGlobalPrompt } from "./controller/prompt.controller";
 import { startPromptSyncCronJob, triggerPromptSyncManually } from './cron/prompt.cron';
 
 // Type definitions for Retell AI webhook
@@ -55,32 +55,35 @@ import {
 import router from "./routes/admin.route";
 
 import { sendSmsHandler } from "./controller/send.controller";
-import {createBusiness, getBusinessByUserId, updateBusinessById, updateBusinessPaymentById, updateBusinessStatus,getBusinessByTitle} from "./controller/business.controller";
-import {saveDefaultVal, getDefaultVal, saveAiDataToUser, saveGlobalValue, updateAIData, getAllGlobalData, addPrice, getPrice, getAllBusinesses} from "./controller/defaultVal.controller";
+import { createBusiness, getBusinessByUserId, updateBusinessById, updateBusinessPaymentById, updateBusinessStatus, getBusinessByTitle } from "./controller/business.controller";
+import { saveDefaultVal, getDefaultVal, saveAiDataToUser, saveGlobalValue, updateAIData, getAllGlobalData, addPrice, getPrice, getAllBusinesses } from "./controller/defaultVal.controller";
 
 //Info
 import {
-    enterContact,
-    getContact,
-    updateContact,
-    deleteContact,
-    enterTerm,
-    getTerm,
-    updateTerm,
-    deleteTerm,
-    enterPrivacy,
-    getPrivacy,
-    updatePrivacy,
-    deletePrivacy
-} from "./controller/info"  
+  enterContact,
+  getContact,
+  updateContact,
+  deleteContact,
+  enterTerm,
+  getTerm,
+  updateTerm,
+  deleteTerm,
+  enterPrivacy,
+  getPrivacy,
+  updatePrivacy,
+  deletePrivacy
+} from "./controller/info"
 dotenv.config();
 import path from 'path';
-import {startAppleReceiptVerificationJob, 
-  stopAppleReceiptVerificationJob, 
+import {
+  startAppleReceiptVerificationJob,
+  stopAppleReceiptVerificationJob,
   runAppleReceiptVerificationJobNow,
   checkAndVerifyAppleReceipts,
-  verifySpecificPlanReceipt} from "./cron/verify.cron";
+  verifySpecificPlanReceipt
+} from "./cron/verify.cron";
 import bodyParser from 'body-parser';
+import { buildNewUserHtml } from './services/nodemailer';
 
 const app = express();
 app.use(express.json());
@@ -98,7 +101,7 @@ connectToDatabase()
     process.exit(1);
   });
 
-import cors from "cors"; 
+import cors from "cors";
 
 // Allow specific origin (your frontend dev server)
 app.use(
@@ -131,30 +134,30 @@ const activeCalls = new Map<string, {
 // Function to start live duration tracking
 const startLiveDurationTracking = (callId: string, toNumber: string) => {
   const startTime = new Date();
-  
+
   const intervalId = setInterval(() => {
     const currentTime = new Date();
     const durationMs = currentTime.getTime() - startTime.getTime();
     const durationSeconds = Math.floor(durationMs / 1000);
     const durationMinutes = Math.floor(durationSeconds / 60);
     const remainingSeconds = durationSeconds % 60;
-    
+
     // Update current duration
     if (activeCalls.has(callId)) {
       activeCalls.get(callId)!.currentDuration = durationSeconds;
     }
-    
+
     console.log(`⏱️ LIVE - Call ${callId} (${toNumber}): ${durationMinutes}:${remainingSeconds.toString().padStart(2, '0')} (${durationSeconds}s)`);
-    
+
     // Optional: Update database with live duration every 10 seconds to avoid too many writes
     if (durationSeconds % 10 === 0) {
       updateLiveCallDuration(callId, toNumber, durationSeconds);
-      
+
       // Deduct seconds from user's plan every 10 seconds during live call
       deductSecondsFromPlan(toNumber, 10);
     }
   }, 2000); // Every 2 seconds
-  
+
   // Store the active call info
   activeCalls.set(callId, {
     startTime,
@@ -162,7 +165,7 @@ const startLiveDurationTracking = (callId: string, toNumber: string) => {
     intervalId,
     currentDuration: 0
   });
-  
+
   console.log(`🚀 Started live duration tracking for call ${callId} (${toNumber})`);
 };
 
@@ -186,7 +189,7 @@ const updateLiveCallDuration = async (callId: string, toNumber: string, duration
     const liveCallsCollection = await getCollection("live_calls");
     await liveCallsCollection.findOneAndUpdate(
       { call_id: callId },
-      { 
+      {
         $set: {
           current_duration_seconds: durationSeconds,
           last_updated: new Date()
@@ -203,56 +206,56 @@ const deductSecondsFromPlan = async (toNumber: string, secondsToDeduct: number) 
   try {
     const usersCollection = await getCollection("users");
     const aiPlansCollection = await getCollection("ai_plans");
-    
+
     // Find user by ai_number
     const user = await usersCollection.findOne({ ai_number: toNumber });
-    
+
     if (!user) {
       console.warn(`⚠️ User with ai_number ${toNumber} not found. Skipping plan deduction.`);
       return;
     }
-    
+
     // Find user's active plan
     const userPlan = await aiPlansCollection.findOne({ user_id: user._id });
-    
+
     if (!userPlan) {
       console.warn(`⚠️ No active plan found for user ${user._id}. Skipping plan deduction.`);
       return;
     }
-    
+
     const currentCallLimit = userPlan.plan_detail.call_limit;
-    
+
     // Check if user has already reached the minimum limit of -1800 seconds
     if (currentCallLimit <= -5400) {
       console.warn(`⚠️ User ${toNumber} has reached maximum overdraft limit (-1800 seconds). No further deductions will be made.`);
       return;
     }
-    
+
     const newCallLimit = currentCallLimit - secondsToDeduct;
-    
+
     // Ensure the new limit doesn't go below -1800
     const finalCallLimit = Math.max(newCallLimit, -5400);
-    
+
     // Update the plan with new call_limit
     await aiPlansCollection.findOneAndUpdate(
       { user_id: user._id },
-      { 
+      {
         $set: {
           "plan_detail.call_limit": finalCallLimit
         }
       }
     );
-    
+
     console.log(`💰 Deducted ${secondsToDeduct} seconds from user ${toNumber}. New limit: ${finalCallLimit} seconds`);
-    
+
     // If we hit the -1800 limit, log a special message
     if (finalCallLimit === -5400 && newCallLimit < -5400) {
       console.log(`🚫 User ${toNumber} has reached maximum overdraft limit of -1800 seconds. No further deductions will be made.`);
     }
-    
+
     // Check for low balance and send notifications
     await checkAndSendLowBalanceNotification(user, finalCallLimit);
-    
+
   } catch (error) {
     console.error("💥 Error deducting seconds from plan:", error);
   }
@@ -265,14 +268,14 @@ const checkAndSendLowBalanceNotification = async (user: any, currentCallLimit: n
       console.log(`🆓 Skipping balance notification for free user ${user.ai_number}`);
       return;
     }
-    
+
     // Define threshold values (in seconds)
     const thresholds = [10, 5, 0, -30, -60, -90, -1800]; // Added some negative thresholds for ongoing notifications
-    
+
     // Check if current limit hits any threshold
     if (thresholds.includes(currentCallLimit) || currentCallLimit < 0) {
       let message = '';
-      
+
       if (currentCallLimit > 0) {
         const minutes = Math.floor(currentCallLimit / 60);
         const seconds = currentCallLimit % 60;
@@ -284,22 +287,22 @@ const checkAndSendLowBalanceNotification = async (user: any, currentCallLimit: n
         const overdraftSeconds = absoluteLimit % 60;
         message = `Balance Exhausted! You've used ${overdraftMinutes}:${overdraftSeconds.toString().padStart(2, '0')} minutes over your limit. Please Recharge immediately.`;
       }
-      
+
       // Send push notification if user has device token
       if (user.device_token) {
         console.log("📱 Sending low balance notification to device token:", user.device_token);
         await push(user.device_token, 'Balance Alert', message);
       }
-      
+
       // Send SMS if SMS is enabled for the user
       if (user.sms === true && user.contact) {
         console.log("📩 Sending low balance SMS to", user.contact);
         await sendSms(user.contact, message);
       }
-      
+
       console.log(`🔔 Low balance notification sent for user ${user.ai_number}. Current limit: ${currentCallLimit} seconds`);
     }
-    
+
   } catch (error) {
     console.error("💥 Error sending low balance notification:", error);
   }
@@ -308,36 +311,36 @@ const checkAndSendLowBalanceNotification = async (user: any, currentCallLimit: n
 //   try {
 //     const usersCollection = await getCollection("users");
 //     const aiPlansCollection = await getCollection("ai_plans");
-    
+
 //     // Find user by ai_number
 //     const user = await usersCollection.findOne({ ai_number: toNumber });
-    
+
 //     if (!user) {
 //       console.warn(`⚠️ User with ai_number ${toNumber} not found. Skipping plan deduction.`);
 //       return;
 //     }
-    
+
 //     // Find user's active plan
 //     const userPlan = await aiPlansCollection.findOne({ user_id: user._id });
-    
+
 //     if (!userPlan) {
 //       console.warn(`⚠️ No active plan found for user ${user._id}. Skipping plan deduction.`);
 //       return;
 //     }
-    
+
 //     const currentCallLimit = userPlan.plan_detail.call_limit;
-    
+
 //     // Check if user has already reached the minimum limit of -1800 seconds
 //     if (currentCallLimit <= -5400) {
 //       console.warn(`⚠️ User ${toNumber} has reached maximum overdraft limit (-1800 seconds). No further deductions will be made.`);
 //       return;
 //     }
-    
+
 //     const newCallLimit = currentCallLimit - secondsToDeduct;
-    
+
 //     // Ensure the new limit doesn't go below -1800
 //     const finalCallLimit = Math.max(newCallLimit, -5400);
-    
+
 //     // Update the plan with new call_limit
 //     await aiPlansCollection.findOneAndUpdate(
 //       { user_id: user._id },
@@ -347,17 +350,17 @@ const checkAndSendLowBalanceNotification = async (user: any, currentCallLimit: n
 //         }
 //       }
 //     );
-    
+
 //     console.log(`💰 Deducted ${secondsToDeduct} seconds from user ${toNumber}. New limit: ${finalCallLimit} seconds`);
-    
+
 //     // If we hit the -1800 limit, log a special message
 //     if (finalCallLimit === -5400 && newCallLimit < -5400) {
 //       console.log(`🚫 User ${toNumber} has reached maximum overdraft limit of -1800 seconds. No further deductions will be made.`);
 //     }
-    
+
 //     // Check for low balance and send notifications
 //     await checkAndSendLowBalanceNotification(user, finalCallLimit);
-    
+
 //   } catch (error) {
 //     console.error("💥 Error deducting seconds from plan:", error);
 //   }
@@ -366,11 +369,11 @@ const checkAndSendLowBalanceNotification = async (user: any, currentCallLimit: n
 //   try {
 //     // Define threshold values (in seconds)
 //     const thresholds = [10, 5, 0, -30, -60, -90, -1800]; // Added some negative thresholds for ongoing notifications
-    
+
 //     // Check if current limit hits any threshold
 //     if (thresholds.includes(currentCallLimit) || currentCallLimit < 0) {
 //       let message = '';
-      
+
 //       if (currentCallLimit > 0) {
 //         const minutes = Math.floor(currentCallLimit / 60);
 //         const seconds = currentCallLimit % 60;
@@ -382,22 +385,22 @@ const checkAndSendLowBalanceNotification = async (user: any, currentCallLimit: n
 //         const overdraftSeconds = absoluteLimit % 60;
 //         message = `Balance Exhausted! You've used ${overdraftMinutes}:${overdraftSeconds.toString().padStart(2, '0')} minutes over your limit. Please Recharge immediately.`;
 //       }
-      
+
 //       // Send push notification if user has device token
 //       if (user.device_token) {
 //         console.log("📱 Sending low balance notification to device token:", user.device_token);
 //         await push(user.device_token, 'Balance Alert', message);
 //       }
-      
+
 //       // Send SMS if SMS is enabled for the user
 //       if (user.sms === true && user.contact) {
 //         console.log("📩 Sending low balance SMS to", user.contact);
 //         await sendSms(user.contact, message);
 //       }
-      
+
 //       console.log(`🔔 Low balance notification sent for user ${user.ai_number}. Current limit: ${currentCallLimit} seconds`);
 //     }
-    
+
 //   } catch (error) {
 //     console.error("💥 Error sending low balance notification:", error);
 //   }
@@ -406,7 +409,7 @@ const checkAndSendLowBalanceNotification = async (user: any, currentCallLimit: n
 
 import axios from 'axios';
 
-const OPENAI_API_KEY =  process.env.OPENAI_API_KEY; // Replace with your API key
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY; // Replace with your API key
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 
 interface CallAnalysis {
@@ -464,17 +467,17 @@ interface CallAnalysis {
 //     );
 
 //     let content = response.data.choices[0].message.content;
-    
+
 //     // Clean up the response by removing markdown code blocks if present
 //     content = content.trim();
-    
+
 //     // Remove ```json and ``` if present
 //     if (content.startsWith('```json')) {
 //       content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
 //     } else if (content.startsWith('```')) {
 //       content = content.replace(/^```\s*/, '').replace(/\s*```$/, '');
 //     }
-    
+
 //     // Remove any leading/trailing whitespace
 //     content = content.trim();
 
@@ -498,7 +501,7 @@ interface CallAnalysis {
 //   } catch (error: any) {
 //     console.error('Error analyzing transcript:', error?.response?.data || error.message);
 //     console.error('Raw OpenAI response:', error?.response?.data?.choices?.[0]?.message?.content);
-    
+
 //     // Return a fallback response instead of throwing
 //     return {
 //       summary: "Unable to analyze call transcript due to parsing error.",
@@ -527,11 +530,11 @@ app.post("/retell-webhook", async (req, res) => {
       console.log("📱 CALL STARTED EVENT DETECTED!");
       console.log(`🔔 Call ID: ${callId}`);
       console.log(`📞 To Number: ${toNumber}`);
-      
+
       // Start live duration tracking
       if (callId && toNumber) {
         startLiveDurationTracking(callId, toNumber);
-        
+
         // Store call start info in database
         try {
           const liveCallsCollection = await getCollection("live_calls");
@@ -550,7 +553,7 @@ app.post("/retell-webhook", async (req, res) => {
 
     } else if (event === "call_ended") {
       console.log("📞 CALL ENDED EVENT DETECTED!");
-      
+
       // Extract call duration information
       const callId = call?.call_id;
       const toNumber = call?.to_number;
@@ -560,10 +563,10 @@ app.post("/retell-webhook", async (req, res) => {
 
       // Stop live tracking and get final duration
       const liveTrackedDuration = stopLiveDurationTracking(callId);
-      
+
       let callDurationSeconds = 0;
       let callDurationMinutes = 0;
-      
+
       if (startTime && endTime) {
         const duration = new Date(endTime).getTime() - new Date(startTime).getTime();
         callDurationSeconds = Math.round(duration / 1000);
@@ -572,24 +575,24 @@ app.post("/retell-webhook", async (req, res) => {
         callDurationSeconds = liveTrackedDuration;
         callDurationMinutes = Math.round(callDurationSeconds / 60);
       }
-      
+
       console.log(`⏱️ Final Call Duration: ${callDurationSeconds} seconds (${callDurationMinutes} minutes)`);
-      
+
       // Store call duration in database and mark as ended
       await updateCallMinutes(toNumber, callDurationSeconds, callId);
-      
+
       // Final deduction of any remaining seconds that weren't deducted during live tracking
       const remainingSeconds = callDurationSeconds % 10;
       if (remainingSeconds > 0) {
         await deductSecondsFromPlan(toNumber, remainingSeconds);
       }
-      
+
       // Update live_calls collection to mark as ended
       try {
         const liveCallsCollection = await getCollection("live_calls");
         await liveCallsCollection.findOneAndUpdate(
           { call_id: callId },
-          { 
+          {
             $set: {
               status: 'ended',
               final_duration_seconds: callDurationSeconds,
@@ -607,17 +610,17 @@ app.post("/retell-webhook", async (req, res) => {
 
       let senti = "";
       let summary = "";
-      
+
       // Get AI number from the call data
       const aiNumber = call?.to_number; // or wherever the AI number is stored in the call data
       console.log(`🤖 AI Number: ${aiNumber}`);
-      
+
       // Fetch custom prompt from users collection based on ai_number
       let customPrompt = null;
       try {
         const usersCollection = await getCollection("users");
         const userDocument = await usersCollection.findOne({ ai_number: aiNumber });
-        
+
         if (userDocument && userDocument.prompt) {
           customPrompt = userDocument.prompt;
           console.log("✅ Custom prompt found for AI number:", aiNumber);
@@ -639,15 +642,15 @@ app.post("/retell-webhook", async (req, res) => {
       const userSentiment = senti || "Unknown";
       const toNumber = call?.to_number || "Unknown";
       const callId = call?.call_id;
-      
+
       let callDurationSeconds = 0;
       let callDurationMinutes = 0;
-      
+
       try {
         // First, try to get duration from the calls collection (most reliable)
         const callsCollection = await getCollection("calls");
         const existingCall = await callsCollection.findOne({ call_id: callId });
-        
+
         if (existingCall && existingCall.duration_seconds) {
           callDurationSeconds = existingCall.duration_seconds;
           callDurationMinutes = existingCall.duration_minutes || Math.round(callDurationSeconds / 60);
@@ -656,7 +659,7 @@ app.post("/retell-webhook", async (req, res) => {
           // Fallback: try to get from live_calls collection
           const liveCallsCollection = await getCollection("live_calls");
           const liveCall = await liveCallsCollection.findOne({ call_id: callId });
-          
+
           if (liveCall && liveCall.final_duration_seconds) {
             callDurationSeconds = liveCall.final_duration_seconds;
             callDurationMinutes = liveCall.final_duration_minutes || Math.round(callDurationSeconds / 60);
@@ -665,7 +668,7 @@ app.post("/retell-webhook", async (req, res) => {
             // Last resort: try timestamps (but this seems unreliable)
             const startTime = call?.start_timestamp;
             const endTime = call?.end_timestamp;
-            
+
             if (startTime && endTime) {
               const duration = new Date(endTime).getTime() - new Date(startTime).getTime();
               callDurationSeconds = Math.round(duration / 1000);
@@ -685,17 +688,17 @@ app.post("/retell-webhook", async (req, res) => {
       console.log("📞 To Number:", toNumber);
 
       // Call your custom function with duration
-      await sendNotify({ 
-        callSummary, 
-        userSentiment, 
-        toNumber, 
+      await sendNotify({
+        callSummary,
+        userSentiment,
+        toNumber,
         callDurationSeconds: callDurationSeconds,
-        callId 
+        callId
       });
 
     } else {
       console.log("ℹ️ Non-call-ended event received:", event);
-      
+
       // Handle other events but don't start tracking for them
       if (event !== "call_started") {
         const callId = call?.call_id;
@@ -742,17 +745,17 @@ app.post("/retell-webhook", async (req, res) => {
 //     );
 
 //     let content = response.data.choices[0].message.content;
-    
+
 //     // Clean up the response by removing markdown code blocks if present
 //     content = content.trim();
-    
+
 //     // Remove ```json and ``` if present
 //     if (content.startsWith('```json')) {
 //       content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
 //     } else if (content.startsWith('```')) {
 //       content = content.replace(/^```\s*/, '').replace(/\s*```$/, '');
 //     }
-    
+
 //     // Remove any leading/trailing whitespace
 //     content = content.trim();
 
@@ -770,7 +773,7 @@ app.post("/retell-webhook", async (req, res) => {
 //   } catch (error: any) {
 //     console.error('Error analyzing transcript:', error?.response?.data || error.message);
 //     console.error('Raw OpenAI response:', error?.response?.data?.choices?.[0]?.message?.content);
-    
+
 //     // Return a fallback response instead of throwing
 //     return {
 //       summary: "Unable to analyze call transcript due to parsing error.",
@@ -780,7 +783,7 @@ app.post("/retell-webhook", async (req, res) => {
 // }
 export async function analyzeCallTranscript(transcript: string, customPrompt?: string): Promise<CallAnalysis> {
   let systemPrompt = customPrompt;
-  
+
   // If no custom prompt provided, fetch default prompt from database
   if (!systemPrompt) {
     try {
@@ -791,17 +794,17 @@ export async function analyzeCallTranscript(transcript: string, customPrompt?: s
       // Replace this with your actual database query method      
       if (defaultPromptDoc && defaultPromptDoc.prompt) {
         systemPrompt = defaultPromptDoc.prompt;
-        console.log("📄 Using default prompt from database",systemPrompt);
+        console.log("📄 Using default prompt from database", systemPrompt);
       } else {
         throw new Error("Default prompt not found in database");
       }
     } catch (dbError) {
       console.error('Error fetching default prompt:', dbError);
-      
+
       // Fallback prompt if database fetch fails
     }
   }
-  
+
   console.log("📄 System Prompt:", systemPrompt);
 
   try {
@@ -824,17 +827,17 @@ export async function analyzeCallTranscript(transcript: string, customPrompt?: s
     );
 
     let content = response.data.choices[0].message.content;
-    
+
     // Clean up the response by removing markdown code blocks if present
     content = content.trim();
-    
+
     // Remove ```json and ``` if present
     if (content.startsWith('```json')) {
       content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
     } else if (content.startsWith('```')) {
       content = content.replace(/^```\s*/, '').replace(/\s*```$/, '');
     }
-    
+
     // Remove any leading/trailing whitespace
     content = content.trim();
 
@@ -852,7 +855,7 @@ export async function analyzeCallTranscript(transcript: string, customPrompt?: s
   } catch (error: any) {
     console.error('Error analyzing transcript:', error?.response?.data || error.message);
     console.error('Raw OpenAI response:', error?.response?.data?.choices?.[0]?.message?.content);
-    
+
     // Return a fallback response instead of throwing
     return {
       summary: "Unable to analyze call transcript due to parsing error.",
@@ -881,11 +884,11 @@ export async function analyzeCallTranscript(transcript: string, customPrompt?: s
 //       console.log("📱 CALL STARTED EVENT DETECTED!");
 //       console.log(`🔔 Call ID: ${callId}`);
 //       console.log(`📞 To Number: ${toNumber}`);
-      
+
 //       // Start live duration tracking
 //       if (callId && toNumber) {
 //         startLiveDurationTracking(callId, toNumber);
-        
+
 //         // Store call start info in database
 //         try {
 //           const liveCallsCollection = await getCollection("live_calls");
@@ -904,7 +907,7 @@ export async function analyzeCallTranscript(transcript: string, customPrompt?: s
 
 //     } else if (event === "call_ended") {
 //       console.log("📞 CALL ENDED EVENT DETECTED!");
-      
+
 //       // Extract call duration information
 //       const callId = call?.call_id;
 //       const toNumber = call?.to_number;
@@ -914,10 +917,10 @@ export async function analyzeCallTranscript(transcript: string, customPrompt?: s
 
 //       // Stop live tracking and get final duration
 //       const liveTrackedDuration = stopLiveDurationTracking(callId);
-      
+
 //       let callDurationSeconds = 0;
 //       let callDurationMinutes = 0;
-      
+
 //       if (startTime && endTime) {
 //         const duration = new Date(endTime).getTime() - new Date(startTime).getTime();
 //         callDurationSeconds = Math.round(duration / 1000);
@@ -926,18 +929,18 @@ export async function analyzeCallTranscript(transcript: string, customPrompt?: s
 //         callDurationSeconds = liveTrackedDuration;
 //         callDurationMinutes = Math.round(callDurationSeconds / 60);
 //       }
-      
+
 //       console.log(`⏱️ Final Call Duration: ${callDurationSeconds} seconds (${callDurationMinutes} minutes)`);
-      
+
 //       // Store call duration in database and mark as ended
 //       await updateCallMinutes(toNumber, callDurationSeconds, callId);
-      
+
 //       // Final deduction of any remaining seconds that weren't deducted during live tracking
 //       const remainingSeconds = callDurationSeconds % 10;
 //       if (remainingSeconds > 0) {
 //         await deductSecondsFromPlan(toNumber, remainingSeconds);
 //       }
-      
+
 //       // Update live_calls collection to mark as ended
 //       try {
 //         const liveCallsCollection = await getCollection("live_calls");
@@ -973,15 +976,15 @@ export async function analyzeCallTranscript(transcript: string, customPrompt?: s
 //       // const userSentiment = call?.call_analysis?.user_sentiment || "Unknown";
 //       const toNumber = call?.to_number || "Unknown";
 //       const callId = call?.call_id;
-      
+
 //       let callDurationSeconds = 0;
 //       let callDurationMinutes = 0;
-      
+
 //       try {
 //         // First, try to get duration from the calls collection (most reliable)
 //         const callsCollection = await getCollection("calls");
 //         const existingCall = await callsCollection.findOne({ call_id: callId });
-        
+
 //         if (existingCall && existingCall.duration_seconds) {
 //           callDurationSeconds = existingCall.duration_seconds;
 //           callDurationMinutes = existingCall.duration_minutes || Math.round(callDurationSeconds / 60);
@@ -990,7 +993,7 @@ export async function analyzeCallTranscript(transcript: string, customPrompt?: s
 //           // Fallback: try to get from live_calls collection
 //           const liveCallsCollection = await getCollection("live_calls");
 //           const liveCall = await liveCallsCollection.findOne({ call_id: callId });
-          
+
 //           if (liveCall && liveCall.final_duration_seconds) {
 //             callDurationSeconds = liveCall.final_duration_seconds;
 //             callDurationMinutes = liveCall.final_duration_minutes || Math.round(callDurationSeconds / 60);
@@ -999,7 +1002,7 @@ export async function analyzeCallTranscript(transcript: string, customPrompt?: s
 //             // Last resort: try timestamps (but this seems unreliable)
 //             const startTime = call?.start_timestamp;
 //             const endTime = call?.end_timestamp;
-            
+
 //             if (startTime && endTime) {
 //               const duration = new Date(endTime).getTime() - new Date(startTime).getTime();
 //               callDurationSeconds = Math.round(duration / 1000);
@@ -1029,7 +1032,7 @@ export async function analyzeCallTranscript(transcript: string, customPrompt?: s
 
 //     } else {
 //       console.log("ℹ️ Non-call-ended event received:", event);
-      
+
 //       // Handle other events but don't start tracking for them
 //       if (event !== "call_started") {
 //         const callId = call?.call_id;
@@ -1062,14 +1065,14 @@ app.get("/live-call-duration/:callId", async (req, res) => {
       const currentDuration = activeCall.currentDuration;
       const minutes = Math.floor(currentDuration / 60);
       const seconds = currentDuration % 60;
-      
+
       // Get user's current plan balance
       const usersCollection = await getCollection("users");
       const aiPlansCollection = await getCollection("ai_plans");
-      
+
       const user = await usersCollection.findOne({ ai_number: activeCall.toNumber });
       let planBalance = null;
-      
+
       if (user) {
         const userPlan = await aiPlansCollection.findOne({ user_id: user._id });
         if (userPlan) {
@@ -1080,7 +1083,7 @@ app.get("/live-call-duration/:callId", async (req, res) => {
           };
         }
       }
-      
+
       res.json({
         call_id: callId,
         to_number: activeCall.toNumber,
@@ -1094,7 +1097,7 @@ app.get("/live-call-duration/:callId", async (req, res) => {
       // Check database for completed calls
       const liveCallsCollection = await getCollection("live_calls");
       const callRecord = await liveCallsCollection.findOne({ call_id: callId });
-      
+
       if (callRecord) {
         res.json({
           call_id: callId,
@@ -1138,6 +1141,34 @@ app.get("/active-calls", async (req, res) => {
 });
 
 
+// Dev-only: Preview New User Signup Email
+// app.get('/preview/new-user-email', (req: Request, res: Response) => {
+//   const {
+//     name = 'John Doe',
+//     email = 'john@example.com',
+//     phone = '+1 555-0100',
+//     signUpMethod = 'email',
+//     socialType = 'Google',
+//     status = 'Active'
+//   } = req.query as Record<string, string>;
+
+//   // Use current time for createdAt
+//   const html = buildNewUserHtml({
+//     name,
+//     email,
+//     phone,
+//     createdAt: new Date(),
+//     signUpMethod,
+//     socialType,
+//     status
+//   });
+
+//   res.setHeader('Content-Type', 'text/html; charset=utf-8');
+//   res.status(200).send(html);
+// });
+
+
+
 // New function to update call minutes
 const updateCallMinutes = async (toNumber: string, durationSeconds: number, callId: string) => {
   try {
@@ -1157,11 +1188,11 @@ const updateCallMinutes = async (toNumber: string, durationSeconds: number, call
     // Update user's total call stats
     await usersCollection.findOneAndUpdate(
       { ai_number: toNumber },
-      { 
-        $inc: { 
+      {
+        $inc: {
           total_call_seconds: durationSeconds,
           total_call_minutes: durationMinutes,
-          call_count: 1 
+          call_count: 1
         },
         $set: {
           last_call_duration_seconds: durationSeconds,
@@ -1366,11 +1397,11 @@ const sendNotify = async ({
     // Update user with call info and duration
     const user = await usersCollection.findOneAndUpdate(
       { ai_number: toNumber },
-      { 
-        $inc: { 
+      {
+        $inc: {
           call_count: 1,
           total_call_seconds: callDurationSeconds,
-          total_call_minutes: callDurationMinutes 
+          total_call_minutes: callDurationMinutes
         },
         $set: {
           last_call_duration_seconds: callDurationSeconds,
@@ -1455,7 +1486,7 @@ const getUserCallStats = async (toNumber: string) => {
   try {
     const usersCollection = await getCollection("users");
     const callsCollection = await getCollection("calls");
-    
+
     const user = await usersCollection.findOne({ ai_number: toNumber });
     if (!user) return null;
 
@@ -1503,25 +1534,25 @@ app.post("/saveTerms", saveTermsHandler);
 app.get("/getTerms", getTermsHandler);
 app.put("/editTerms/:id", editTermsByIdHandler);
 app.delete("/deleteTerms/:id", deleteTermsByIdHandler);
-app.post("/add-contact",enterContact);
-app.get("/get-contact",getContact);
-app.put("/edit-contact/:id",updateContact);
-app.delete("/delete-contact/:id",deleteContact);
-app.post("/add-term",enterTerm);
-app.get("/get-term",getTerm);
-app.put("/update-term/:id",updateTerm);
-app.delete("/delete-term/:id",deleteTerm);
-app.post("/add-privacy",enterPrivacy);
-app.get("/get-privacy",getPrivacy);
-app.put("/edit-privacy/:id",updatePrivacy);
-app.delete("/delete-privacy/:id",deletePrivacy);
-app.post("/createBusiness",createBusiness);
+app.post("/add-contact", enterContact);
+app.get("/get-contact", getContact);
+app.put("/edit-contact/:id", updateContact);
+app.delete("/delete-contact/:id", deleteContact);
+app.post("/add-term", enterTerm);
+app.get("/get-term", getTerm);
+app.put("/update-term/:id", updateTerm);
+app.delete("/delete-term/:id", deleteTerm);
+app.post("/add-privacy", enterPrivacy);
+app.get("/get-privacy", getPrivacy);
+app.put("/edit-privacy/:id", updatePrivacy);
+app.delete("/delete-privacy/:id", deletePrivacy);
+app.post("/createBusiness", createBusiness);
 app.get("/getAllBusinesses", getAllBusinesses);
-app.get("/getBusinessByUserId/:userId",getBusinessByUserId);
-app.put('/updateBusiness/:id', updateBusinessById); 
-app.put('/updateBusinessPaymentById/:id', updateBusinessPaymentById); 
-app.post('/updateBusinessStatus', updateBusinessStatus); 
-app.get('/getBusinessByTitle', getBusinessByTitle); 
+app.get("/getBusinessByUserId/:userId", getBusinessByUserId);
+app.put('/updateBusiness/:id', updateBusinessById);
+app.put('/updateBusinessPaymentById/:id', updateBusinessPaymentById);
+app.post('/updateBusinessStatus', updateBusinessStatus);
+app.get('/getBusinessByTitle', getBusinessByTitle);
 app.post("/default-val", saveDefaultVal);
 app.get("/getDefaultVal", getDefaultVal);
 
@@ -1656,7 +1687,7 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
     const userTime = moment().tz(timeZone);
     const currentDay = userTime.format('dddd');
     const currentTime = userTime.format('HH:mm');
-    
+
     // Tomorrow calculations
     const tomorrowTime = moment().tz(timeZone).add(1, 'day');
     const tomorrowDay = tomorrowTime.format('dddd');
@@ -1679,7 +1710,7 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
       const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
       let index = daysOfWeek.indexOf(currentDay);
       const startIndex = skipToday ? 1 : 0;
-      
+
       for (let i = startIndex; i <= 7; i++) {
         const nextDay = daysOfWeek[(index + i) % 7];
         const next = schedule[nextDay];
@@ -1722,7 +1753,7 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
       }
 
       const tomorrowSchedule = schedule[tomorrowDay];
-      
+
       // Check if tomorrow schedule exists and is open
       if (!tomorrowSchedule || !tomorrowSchedule.open || !tomorrowSchedule.hours) {
         const nextOpenAfterTomorrow = findNextOpenAfterTomorrow();
@@ -1891,18 +1922,18 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
       if (user.business_hours_from && user.business_hours_to) {
         return `${user.business_hours_from} - ${user.business_hours_to}`;
       }
-      
+
       // If not set, derive from today's schedule
       if (todaySchedule?.open && todaySchedule.hours) {
         return todaySchedule.hours;
       }
-      
+
       // If today is closed, find the next open day's hours
       const nextOpen = findNextOpen();
       if (nextOpen) {
         return nextOpen.hours;
       }
-      
+
       return 'Not available';
     };
 
@@ -1992,7 +2023,7 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
 //     const userTime = moment().tz(timeZone);
 //     const currentDay = userTime.format('dddd');
 //     const currentTime = userTime.format('HH:mm');
-    
+
 //     // Tomorrow calculations
 //     const tomorrowTime = moment().tz(timeZone).add(1, 'day');
 //     const tomorrowDay = tomorrowTime.format('dddd');
@@ -2015,7 +2046,7 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
 //       const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 //       let index = daysOfWeek.indexOf(currentDay);
 //       const startIndex = skipToday ? 1 : 0;
-      
+
 //       for (let i = startIndex; i <= 7; i++) {
 //         const nextDay = daysOfWeek[(index + i) % 7];
 //         const next = schedule[nextDay];
@@ -2058,7 +2089,7 @@ app.get('/get-schedule', async (req: Request, res: Response): Promise<void> => {
 //       }
 
 //       const tomorrowSchedule = schedule[tomorrowDay];
-      
+
 //       // Check if tomorrow schedule exists and is open
 //       if (!tomorrowSchedule || !tomorrowSchedule.open || !tomorrowSchedule.hours) {
 //         const nextOpenAfterTomorrow = findNextOpenAfterTomorrow();
@@ -2291,13 +2322,13 @@ interface CallDocument {
 
 
 // Single API endpoint to get user calls
-app.post('/user-calls', async (req: Request, res: Response) : Promise<void> => {
+app.post('/user-calls', async (req: Request, res: Response): Promise<void> => {
   try {
     const { user_id } = req.body;
 
     // Validate input
     if (!user_id) {
-       res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'user_id is required in the request payload'
       });
@@ -2306,7 +2337,7 @@ app.post('/user-calls', async (req: Request, res: Response) : Promise<void> => {
 
     // Validate ObjectId format
     if (!ObjectId.isValid(user_id)) {
-       res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'Invalid user_id format'
       });
@@ -2355,11 +2386,11 @@ const server = app.listen(PORT, () => {
 startPlanExpiryJob();
 
 startAppleReceiptVerificationJob();
-  stopAppleReceiptVerificationJob();
-  runAppleReceiptVerificationJobNow();
-  checkAndVerifyAppleReceipts();
-  startPromptSyncCronJob();
-  // verifySpecificPlanReceipt();
+stopAppleReceiptVerificationJob();
+runAppleReceiptVerificationJobNow();
+checkAndVerifyAppleReceipts();
+startPromptSyncCronJob();
+// verifySpecificPlanReceipt();
 
 // Handle graceful shutdown
 process.on("SIGTERM", async () => {
