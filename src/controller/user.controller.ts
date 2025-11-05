@@ -102,8 +102,36 @@ export const blockUser = async (req: Request, res: Response): Promise<void> => {
 export const getBlocks = async (_req: Request, res: Response) => {
   try {
     const blockCollection = await getCollection("block");
+    const usersCollection = await getCollection("users");
+
     const blocked = await blockCollection.find().toArray();
-    res.json(blocked);
+
+    // Check if data exists
+    if (!blocked || blocked.length === 0) {
+      res.json([]);
+      return;
+    }
+
+    // For each blocked item, check if phone exists and get user data
+    const blockedWithUserData = await Promise.all(
+      blocked.map(async (blockItem) => {
+        let userData = null;
+
+        // Check if phone exists in block item
+        if (blockItem.phone) {
+          // Find user by phone in usersCollection
+          const user = await usersCollection.findOne({ phone: blockItem.phone });
+          userData = user?.user || null;
+        }
+
+        return {
+          ...blockItem,
+          userData: userData || null
+        };
+      })
+    );
+
+    res.json(blockedWithUserData);
   } catch (err) {
     res.status(500).json({ message: "Error fetching blocked list", error: err });
   }
