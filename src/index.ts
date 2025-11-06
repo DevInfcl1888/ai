@@ -55,6 +55,7 @@ import {
 import router from "./routes/admin.route";
 
 import { sendSmsHandler } from "./controller/send.controller";
+import { chatGPTHandler } from "./controller/chatgpt.controller";
 import { createBusiness, getBusinessByUserId, updateBusinessById, updateBusinessPaymentById, updateBusinessStatus, getBusinessByTitle } from "./controller/business.controller";
 import { saveDefaultVal, getDefaultVal, saveAiDataToUser, saveGlobalValue, updateAIData, getAllGlobalData, addPrice, getPrice, getAllBusinesses } from "./controller/defaultVal.controller";
 
@@ -1511,6 +1512,7 @@ const getUserCallStats = async (toNumber: string) => {
 };
 
 app.post("/send-sms", sendSmsHandler);
+app.post("/chatgpt", chatGPTHandler);
 
 // Routes
 app.post("/otp/send", sendOtpHandler);
