@@ -2,6 +2,7 @@
 import { Request, Response, NextFunction } from "express";
 import { connectToDatabase } from "../config/database";
 import { ObjectId } from "mongodb";
+import { push } from "../services/sendPushNotification";
 
 export const getAllUsers = async (
   req: Request,
@@ -55,6 +56,20 @@ export const blockUser = async (req: Request, res: Response): Promise<void> => {
       { $set: { isBlocked: true } }
     );
 
+    if (user.device_token) {
+      try {
+        await push(
+          user.device_token,
+          "Account Blocked",
+          "You are blocked by Admin"
+        );
+      } catch (pushError) {
+        console.error("Error sending block notification:", pushError);
+      }
+    } else {
+      console.warn("No device token found for user:", userId);
+    }
+
     res
       .status(200)
       .json({ success: true, message: "User blocked successfully" });
@@ -97,6 +112,20 @@ export const unblockUser = async (
       { _id: new ObjectId(userId) },
       { $set: { isBlocked: false } }
     );
+
+    if (user.device_token) {
+      try {
+        await push(
+          user.device_token,
+          "Account Unblocked",
+          "You are unblocked by Admin"
+        );
+      } catch (pushError) {
+        console.error("Error sending unblock notification:", pushError);
+      }
+    } else {
+      console.warn("No device token found for user:", userId);
+    }
 
     res
       .status(200)

@@ -80,12 +80,12 @@ export const loginHandler = async (req: Request, res: Response): Promise<void> =
 
   const usersCollection = await getCollection("users");
   const blockCollection = await getCollection("block");
-    const isBlocked = await blockCollection.findOne({ phone: phoneNumber });
+  const isBlocked = await blockCollection.findOne({ phone: phoneNumber });
 
-    if (isBlocked) {
-      res.status(403).json({ error: "You are blocked. Please contact the admin." });
-      return;
-    }
+  if (isBlocked) {
+    res.status(403).json({ error: "You are blocked. Please contact the admin." });
+    return;
+  }
   const existingUser = await usersCollection.findOne({
     $or: [{ phone: phoneNumber }],
   });
@@ -123,14 +123,14 @@ export const loginHandler = async (req: Request, res: Response): Promise<void> =
 
 
 export const editProfileHandler = async (req: Request, res: Response) => {
-    const userId = req.query.id as string;
-    if (!ObjectId.isValid(userId)) {
-     res.status(400).json({ error: "Invalid user ID format" });
-     return;
+  const userId = req.query.id as string;
+  if (!ObjectId.isValid(userId)) {
+    res.status(400).json({ error: "Invalid user ID format" });
+    return;
   }
 
   const usersCollection = await getCollection("users");
-  const existingUser = await usersCollection.findOne({  _id: new ObjectId(userId) });
+  const existingUser = await usersCollection.findOne({ _id: new ObjectId(userId) });
 
   if (!existingUser) {
     res.status(400).json({ error: "User not found" });
@@ -333,6 +333,11 @@ export const getProfileHandler = async (req: Request, res: Response) => {
     return;
   }
 
+  if (existingUser.isBlocked === true) {
+    res.status(403).json({ error: "you are blocked by admin" });
+    return;
+  }
+
   let planStatus: any = {
     status: "no active plans",
     plan_name: "",
@@ -371,24 +376,24 @@ export const getProfileHandler = async (req: Request, res: Response) => {
 
   // ✅ Check for business document
   // 🔍 Do NOT use userObjectId here because business.userId is a string
-const businessDoc = await businessCollection.findOne({ userId });  // exact match string to string
+  const businessDoc = await businessCollection.findOne({ userId });  // exact match string to string
 
-let businessInfo;
-if (businessDoc && businessDoc.userId === userId) {
-  businessInfo = {
-    form: true,
-    Status: businessDoc.Status || "",
-    Title: businessDoc.Title || "",
-    Response: businessDoc.Response || ""
-  };
-} else {
-  businessInfo = {
-    form: false,
-    Status: "",
-    Title: "",
-    Response: ""
-  };
-}
+  let businessInfo;
+  if (businessDoc && businessDoc.userId === userId) {
+    businessInfo = {
+      form: true,
+      Status: businessDoc.Status || "",
+      Title: businessDoc.Title || "",
+      Response: businessDoc.Response || ""
+    };
+  } else {
+    businessInfo = {
+      form: false,
+      Status: "",
+      Title: "",
+      Response: ""
+    };
+  }
 
 
   const userData = {
